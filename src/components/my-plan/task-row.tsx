@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { MyPlanTask } from "@/lib/types";
@@ -5,9 +6,11 @@ import type { MyPlanTask } from "@/lib/types";
 export function MyPlanTaskRow({
   task,
   onToggle,
+  onDelete,
 }: {
   task: MyPlanTask;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   return (
     <li className="flex items-center gap-4 border-b border-[#E5E9F0] px-6 py-4 last:border-b-0 hover:bg-[#F9FAFB]">
@@ -49,6 +52,22 @@ export function MyPlanTaskRow({
       >
         {task.frequency}
       </span>
+
+      <div className="flex shrink-0 items-center gap-3">
+        <button
+          className="text-[#9AA3B2] hover:text-[#16233F]"
+          aria-label="Edit task"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          className="text-[#9AA3B2] hover:text-red-600"
+          aria-label="Delete task"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </li>
   );
 }
