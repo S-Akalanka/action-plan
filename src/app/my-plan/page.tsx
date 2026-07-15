@@ -85,7 +85,7 @@ export default function MyPlanPage() {
     <div className="min-h-screen bg-[#F5F6F8] text-[#16233F]">
       <SiteHeader />
 
-      <div className="mx-auto flex max-w-[1400px]">
+      <div className="mx-auto flex max-w-350">
         <TeamSidebar selectedTeamId={selectedTeamId} onSelect={setSelectedTeamId} />
 
         <main className="flex-1 px-8 py-8">
@@ -98,7 +98,7 @@ export default function MyPlanPage() {
             </div>
             <Button
               onClick={() => setAdding((v) => !v)}
-              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
+              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
             >
               <Plus className="h-4 w-4" />
               Add task

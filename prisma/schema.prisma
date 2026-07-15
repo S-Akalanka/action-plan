@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//  Enums
+
+enum Role {
+  TEAM
+  ADMIN
+  CEO
+}
+
+enum Category {
+  FINANCE
+  CUSTOMER
+  PROCESS_TECH
+  PEOPLE
+}
+
+enum Frequency {
+  WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum Source {
+  STANDARD
+  ADHOC
+}
+
+enum Status {
+  INCOMPLETE
+  COMPLETE
+}
+
+//  Models 
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  microsoftId String   @unique
+  role        Role     @default(TEAM)
+
+  memberships    Membership[]
+  createdTasks   Task[]         @relation("TaskCreator")
+  completedByMe  TaskInstance[] @relation("InstanceCompleter")
+
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  teamName    String
+  description String?
+
+  memberships Membership[]
+  tasks       Task[]
+
+  createdAt DateTime @default(now())
+
+  @@map("teams")
+}
+
+model Membership {
+  id     String @id @default(cuid())
+  userId String
+  teamId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, teamId])
+  @@map("memberships")
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User      @relation("TaskCreator", fields: [createdById], references: [id])
+
+  category      Category
+  description   String
+  kpiReference  String?
+  frequency     Frequency
+  source        Source    @default(STANDARD)
+  isActive      Boolean   @default(true)
+
+  instances     TaskInstance[]
+  createdAt     DateTime  @default(now())
+
+  @@index([teamId, category])
+  @@map("tasks")
+}
+
+model TaskInstance {
+  id              String    @id @default(cuid())
+  taskId          String
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  weekStartDate   DateTime  @db.Date
+  status          Status    @default(INCOMPLETE)
+  completedAt     DateTime?
+  completedById   String?
+  completedBy     User?     @relation("InstanceCompleter", fields: [completedById], references: [id])
+
+  @@unique([taskId, weekStartDate])
+  @@index([weekStartDate])
+  @@map("task_instances")
+}
