@@ -8,23 +8,29 @@ import { PlanSidebar } from "@/components/my-plan/plan-sidebar";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
-import { CATEGORIES, MY_PLAN_TASKS } from "@/lib/mock-data";
+import { CATEGORIES, MY_PLAN_TASKS, TEAMS } from "@/lib/mock-data";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 
 export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>(MY_PLAN_TASKS);
   const [adding, setAdding] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<CategoryKey | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState(TEAMS[0].id);
+
+  const selectedTeam = TEAMS.find((t) => t.id === selectedTeamId) ?? TEAMS[0];
+  const teamTasks = useMemo(
+    () => tasks.filter((t) => t.teamId === selectedTeamId),
+    [tasks, selectedTeamId]
+  );
 
   const overallPercent = useMemo(() => {
-    if (tasks.length === 0) return 0;
-    return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100);
-  }, [tasks]);
+    if (teamTasks.length === 0) return 0;
+    return Math.round((teamTasks.filter((t) => t.done).length / teamTasks.length) * 100);
+  }, [teamTasks]);
 
   const categoryStats = useMemo(
     () =>
       CATEGORIES.map((cat) => {
-        const catTasks = tasks.filter((t) => t.category === cat.key);
+        const catTasks = teamTasks.filter((t) => t.category === cat.key);
         return {
           key: cat.key,
           icon: cat.icon,
@@ -32,12 +38,8 @@ export default function MyPlanPage() {
           total: catTasks.length,
         };
       }),
-    [tasks]
+    [teamTasks]
   );
-
-  const categoriesToShow = selectedTeam
-    ? CATEGORIES.filter((c) => c.key === selectedTeam)
-    : CATEGORIES;
 
   const toggle = (id: string) =>
     setTasks((prev) =>
@@ -68,6 +70,7 @@ export default function MyPlanPage() {
       ...prev,
       {
         id: `m${Date.now()}`,
+        teamId: selectedTeamId,
         desc: data.desc,
         category: data.category,
         kpi: data.kpi,
@@ -83,19 +86,19 @@ export default function MyPlanPage() {
       <SiteHeader />
 
       <div className="mx-auto flex max-w-[1400px]">
-        <PlanSidebar selected={selectedTeam} onSelect={setSelectedTeam} />
+        <PlanSidebar selectedTeamId={selectedTeamId} onSelect={setSelectedTeamId} />
 
         <main className="flex-1 px-8 py-8">
           <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">My Action Plan</h1>
               <p className="mt-1 text-sm text-[#5B6472]">
-                Week 42 · {selectedTeam ?? "BU01 North America Retail"}
+                Week 42 · {selectedTeam.label}
               </p>
             </div>
             <Button
               onClick={() => setAdding((v) => !v)}
-              className="gap-1.5 rounded-lg bg-[#16233F] text-white px-4 hover:bg-[#0F1A30]"
+              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
             >
               <Plus className="h-4 w-4" />
               Add task
@@ -113,17 +116,23 @@ export default function MyPlanPage() {
           )}
 
           <div className="space-y-6">
-            {categoriesToShow.map((cat) => (
+            {CATEGORIES.map((cat) => (
               <TaskGroup
                 key={cat.key}
                 icon={cat.icon}
                 label={cat.key}
-                tasks={tasks.filter((t) => t.category === cat.key)}
+                tasks={teamTasks.filter((t) => t.category === cat.key)}
                 onToggle={toggle}
                 onDelete={deleteTask}
               />
             ))}
           </div>
+
+          {teamTasks.length === 0 && (
+            <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
+              No tasks tracked for {selectedTeam.label} yet.
+            </div>
+          )}
         </main>
       </div>
     </div>

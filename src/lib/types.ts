@@ -93,8 +93,15 @@ export interface LedgerTask {
 
 export type MyPlanFrequency = "Weekly" | "Monthly" | "Quarterly" | "Ad-hoc";
 
+export interface Team {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
 export interface MyPlanTask {
   id: string;
+  teamId: string;
   desc: string;
   category: CategoryKey;
   kpi: string;

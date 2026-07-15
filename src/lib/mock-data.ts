@@ -1,4 +1,4 @@
-import { Landmark, Cog, Headset, Users } from "lucide-react";
+import { Landmark, Cog, Headset, Users, Building2, Wrench, ShieldCheck, Megaphone } from "lucide-react";
 import type {
   SummaryCardData,
   UnitData,
@@ -9,6 +9,7 @@ import type {
   CategoryKey,
   LedgerTask,
   MyPlanTask,
+  Team,
 } from "./types";
 
 /**
@@ -339,12 +340,22 @@ export const LEDGER_TASKS: LedgerTask[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// My Action Plan: personal weekly tasks
+// My Action Plan: teams & their weekly tasks
 // ---------------------------------------------------------------------------
 
+export const TEAMS: Team[] = [
+  { id: "bu01", label: "BU01 · North America Retail", icon: Building2 },
+  { id: "bu02", label: "BU02 · EMEA Wholesale", icon: Building2 },
+  { id: "engineering", label: "Engineering", icon: Wrench },
+  { id: "hr-admin", label: "HR & Admin", icon: ShieldCheck },
+  { id: "sales-marketing", label: "Sales & Marketing", icon: Megaphone },
+];
+
 export const MY_PLAN_TASKS: MyPlanTask[] = [
+  // --- BU01 · North America Retail ---
   {
     id: "m1",
+    teamId: "bu01",
     desc: "Reconcile weekly cash position",
     category: "Finance",
     kpi: "Ledger Accuracy %",
@@ -354,6 +365,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m2",
+    teamId: "bu01",
     desc: "Submit variance commentary",
     category: "Finance",
     kpi: "Variance Reporting",
@@ -362,6 +374,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m3",
+    teamId: "bu01",
     desc: "Review top-10 customer health scores",
     category: "Customer",
     kpi: "NPS",
@@ -371,6 +384,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m4",
+    teamId: "bu01",
     desc: "Follow up on escalated tickets",
     category: "Customer",
     kpi: "Ticket Aging",
@@ -379,6 +393,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m5",
+    teamId: "bu01",
     desc: "Sprint retro action items closed",
     category: "Process/Tech",
     kpi: "Retro Closure",
@@ -387,6 +402,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m6",
+    teamId: "bu01",
     desc: "Deploy monthly patch bundle",
     category: "Process/Tech",
     kpi: "Patch SLA",
@@ -395,6 +411,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m7",
+    teamId: "bu01",
     desc: "Complete 1:1 with each direct report",
     category: "People",
     kpi: "1:1 Completion",
@@ -404,10 +421,121 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
   },
   {
     id: "m8",
+    teamId: "bu01",
     desc: "Log recognition for peer contributions",
     category: "People",
     kpi: "Recognition Count",
     frequency: "Weekly",
+    done: false,
+  },
+
+  // --- BU02 · EMEA Wholesale ---
+  {
+    id: "m9",
+    teamId: "bu02",
+    desc: "Negotiate wholesale distributor terms",
+    category: "Finance",
+    kpi: "Margin Target",
+    frequency: "Quarterly",
+    done: false,
+  },
+  {
+    id: "m10",
+    teamId: "bu02",
+    desc: "Localize product catalog for EU launch",
+    category: "Process/Tech",
+    kpi: "Localization Coverage",
+    frequency: "Monthly",
+    done: false,
+  },
+  {
+    id: "m11",
+    teamId: "bu02",
+    desc: "Onboard new EMEA support reps",
+    category: "People",
+    kpi: "Onboarding Completion",
+    frequency: "Monthly",
+    done: true,
+    completedAt: "Thu 13:40",
+  },
+
+  // --- Engineering ---
+  {
+    id: "m12",
+    teamId: "engineering",
+    desc: "Fix critical auth bug in staging",
+    category: "Process/Tech",
+    kpi: "Bug Resolution SLA",
+    frequency: "Weekly",
+    done: true,
+    completedAt: "Mon 10:02",
+  },
+  {
+    id: "m13",
+    teamId: "engineering",
+    desc: "Clear code review backlog",
+    category: "Process/Tech",
+    kpi: "Review Turnaround",
+    frequency: "Weekly",
+    done: false,
+  },
+  {
+    id: "m14",
+    teamId: "engineering",
+    desc: "Update on-call rotation doc",
+    category: "People",
+    kpi: "Doc Freshness",
+    frequency: "Monthly",
+    done: false,
+  },
+
+  // --- HR & Admin ---
+  {
+    id: "m15",
+    teamId: "hr-admin",
+    desc: "Process Q4 payroll adjustments",
+    category: "Finance",
+    kpi: "Payroll Accuracy",
+    frequency: "Monthly",
+    done: false,
+  },
+  {
+    id: "m16",
+    teamId: "hr-admin",
+    desc: "Run quarterly engagement survey",
+    category: "People",
+    kpi: "Survey Response Rate",
+    frequency: "Quarterly",
+    done: false,
+  },
+
+  // --- Sales & Marketing ---
+  {
+    id: "m17",
+    teamId: "sales-marketing",
+    desc: "Finalize Q4 campaign budget",
+    category: "Finance",
+    kpi: "Budget Variance",
+    frequency: "Quarterly",
+    done: false,
+  },
+  {
+    id: "m18",
+    teamId: "sales-marketing",
+    desc: "Review lead conversion funnel",
+    category: "Customer",
+    kpi: "Conversion Rate",
+    frequency: "Weekly",
+    done: true,
+    completedAt: "Tue 14:00",
+  },
+  {
+    id: "m19",
+    teamId: "sales-marketing",
+    desc: "Refresh brand messaging deck",
+    category: "Process/Tech",
+    kpi: "Deck Completion",
+    frequency: "Monthly",
     done: false,
   },
 ];
