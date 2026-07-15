@@ -65,6 +65,11 @@ export default function MyPlanPage() {
   const deleteTask = (id: string) =>
     setTasks((prev) => prev.filter((t) => t.id !== id));
 
+  const toggleActive = (id: string) =>
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, active: !t.active } : t))
+    );
+
   const addTask = (data: { desc: string; category: CategoryKey; kpi: string }) => {
     setTasks((prev) => [
       ...prev,
@@ -76,6 +81,7 @@ export default function MyPlanPage() {
         kpi: data.kpi,
         frequency: "Ad-hoc",
         done: false,
+        active: false,
       },
     ]);
     setAdding(false);
@@ -85,8 +91,12 @@ export default function MyPlanPage() {
     <div className="min-h-screen bg-[#F5F6F8] text-[#16233F]">
       <SiteHeader />
 
-      <div className="mx-auto flex max-w-350">
-        <TeamSidebar selectedTeamId={selectedTeamId} onSelect={setSelectedTeamId} />
+      <div className="mx-auto flex max-w-[1400px]">
+        <TeamSidebar
+          teams={TEAMS}
+          selectedTeamId={selectedTeamId}
+          onSelect={setSelectedTeamId}
+        />
 
         <main className="flex-1 px-8 py-8">
           <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -98,7 +108,7 @@ export default function MyPlanPage() {
             </div>
             <Button
               onClick={() => setAdding((v) => !v)}
-              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
+              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
             >
               <Plus className="h-4 w-4" />
               Add task
@@ -111,7 +121,11 @@ export default function MyPlanPage() {
 
           {adding && (
             <div className="mb-8">
-              <AddAdHocTaskForm onSave={addTask} onCancel={() => setAdding(false)} />
+              <AddAdHocTaskForm
+                categories={CATEGORIES}
+                onSave={addTask}
+                onCancel={() => setAdding(false)}
+              />
             </div>
           )}
 
@@ -123,6 +137,7 @@ export default function MyPlanPage() {
                 label={cat.key}
                 tasks={teamTasks.filter((t) => t.category === cat.key)}
                 onToggle={toggle}
+                onToggleActive={toggleActive}
                 onDelete={deleteTask}
               />
             ))}

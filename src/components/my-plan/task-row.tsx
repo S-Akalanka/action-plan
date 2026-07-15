@@ -1,17 +1,29 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { getMyPlanStatus } from "@/lib/types";
 import type { MyPlanTask } from "@/lib/types";
+
+const STATUS_STYLES = {
+  Pending: "bg-[#F1F2F5] text-[#5B6472]",
+  "In Progress": "bg-[#FEF3C7] text-[#B45309]",
+  Completed: "bg-[#DCFCE7] text-[#16A34A]",
+} as const;
 
 export function MyPlanTaskRow({
   task,
   onToggle,
+  onToggleActive,
   onDelete,
 }: {
   task: MyPlanTask;
   onToggle: () => void;
+  onToggleActive: () => void;
   onDelete: () => void;
 }) {
+  const status = getMyPlanStatus(task.active, task.done);
+
   return (
     <li className="flex items-center gap-4 border-b border-[#E5E9F0] px-6 py-4 last:border-b-0 hover:bg-[#F9FAFB]">
       <Checkbox
@@ -44,16 +56,20 @@ export function MyPlanTaskRow({
 
       <span
         className={cn(
-          "shrink-0 rounded-md px-2 py-1 text-xs font-medium",
-          task.frequency === "Ad-hoc"
-            ? "border border-[#FBBF24] bg-[#FEF3C7] text-[#92400E]"
-            : "bg-[#F1F2F5] text-[#5B6472]"
+          "shrink-0 rounded-md px-2 py-1 text-xs font-semibold",
+          STATUS_STYLES[status]
         )}
       >
-        {task.frequency}
+        {status}
       </span>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-4">
+        <Switch
+          checked={task.active}
+          onCheckedChange={onToggleActive}
+          className="data-[state=checked]:bg-[#16233F]"
+          aria-label="Toggle active"
+        />
         <button
           className="text-[#9AA3B2] hover:text-[#16233F]"
           aria-label="Edit task"

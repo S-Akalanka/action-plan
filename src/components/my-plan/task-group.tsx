@@ -7,12 +7,14 @@ export function TaskGroup({
   label,
   tasks,
   onToggle,
+  onToggleActive,
   onDelete,
 }: {
   icon: LucideIcon;
   label: string;
   tasks: MyPlanTask[];
   onToggle: (id: string) => void;
+  onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   if (tasks.length === 0) return null;
@@ -35,6 +37,7 @@ export function TaskGroup({
             key={task.id}
             task={task}
             onToggle={() => onToggle(task.id)}
+            onToggleActive={() => onToggleActive(task.id)}
             onDelete={() => onDelete(task.id)}
           />
         ))}

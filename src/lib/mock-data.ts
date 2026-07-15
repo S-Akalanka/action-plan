@@ -12,6 +12,7 @@ import type {
   Team,
   ExecutiveTeamSummary,
   TeamDrilldownStats,
+  StandardTask,
 } from "./types";
 
 /**
@@ -363,6 +364,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Ledger Accuracy %",
     frequency: "Weekly",
     done: true,
+    active: true,
     completedAt: "Mon 09:14",
   },
   {
@@ -373,6 +375,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Variance Reporting",
     frequency: "Weekly",
     done: false,
+    active: false,
   },
   {
     id: "m3",
@@ -382,6 +385,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "NPS",
     frequency: "Weekly",
     done: true,
+    active: true,
     completedAt: "Tue 11:02",
   },
   {
@@ -392,6 +396,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Ticket Aging",
     frequency: "Weekly",
     done: false,
+    active: true,
   },
   {
     id: "m5",
@@ -401,6 +406,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Retro Closure",
     frequency: "Weekly",
     done: false,
+    active: true,
   },
   {
     id: "m6",
@@ -410,6 +416,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Patch SLA",
     frequency: "Monthly",
     done: false,
+    active: true,
   },
   {
     id: "m7",
@@ -419,6 +426,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "1:1 Completion",
     frequency: "Weekly",
     done: true,
+    active: true,
     completedAt: "Wed 15:20",
   },
   {
@@ -429,6 +437,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Recognition Count",
     frequency: "Weekly",
     done: false,
+    active: true,
   },
 
   // --- BU02 · EMEA Wholesale ---
@@ -440,6 +449,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Margin Target",
     frequency: "Quarterly",
     done: false,
+    active: false,
   },
   {
     id: "m10",
@@ -449,6 +459,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Localization Coverage",
     frequency: "Monthly",
     done: false,
+    active: true,
   },
   {
     id: "m11",
@@ -458,6 +469,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Onboarding Completion",
     frequency: "Monthly",
     done: true,
+    active: true,
     completedAt: "Thu 13:40",
   },
 
@@ -470,6 +482,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Bug Resolution SLA",
     frequency: "Weekly",
     done: true,
+    active: true,
     completedAt: "Mon 10:02",
   },
   {
@@ -480,6 +493,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Review Turnaround",
     frequency: "Weekly",
     done: false,
+    active: true,
   },
   {
     id: "m14",
@@ -489,6 +503,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Doc Freshness",
     frequency: "Monthly",
     done: false,
+    active: true,
   },
 
   // --- HR & Admin ---
@@ -500,6 +515,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Payroll Accuracy",
     frequency: "Monthly",
     done: false,
+    active: false,
   },
   {
     id: "m16",
@@ -509,6 +525,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Survey Response Rate",
     frequency: "Quarterly",
     done: false,
+    active: true,
   },
 
   // --- Sales & Marketing ---
@@ -520,6 +537,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Budget Variance",
     frequency: "Quarterly",
     done: false,
+    active: true,
   },
   {
     id: "m18",
@@ -529,6 +547,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Conversion Rate",
     frequency: "Weekly",
     done: true,
+    active: true,
     completedAt: "Tue 14:00",
   },
   {
@@ -539,6 +558,7 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     kpi: "Deck Completion",
     frequency: "Monthly",
     done: false,
+    active: true,
   },
 ];
 
@@ -854,3 +874,106 @@ export const TEAM_DRILLDOWNS: Record<string, TeamDrilldownStats> = {
     ],
   },
 };
+
+// ---------------------------------------------------------------------------
+// Directory: standard task templates
+// ---------------------------------------------------------------------------
+
+export const STANDARD_TASKS: StandardTask[] = [
+  {
+    id: "st1",
+    description: "Monthly Financial Reconciliation",
+    details: "Ensure all BU ledgers match corporate master.",
+    category: "Finance",
+    kpi: "Ledger Accuracy %",
+    frequency: "Monthly",
+  },
+  {
+    id: "st2",
+    description: "Quarterly Performance Reviews",
+    details: "Conduct and log 1:1 reviews for all direct reports.",
+    category: "People",
+    kpi: "Completion Rate",
+    frequency: "Quarterly",
+  },
+  {
+    id: "st3",
+    description: "Weekly Customer NPS Survey",
+    details: "Send NPS pulse to top 50 accounts.",
+    category: "Customer",
+    kpi: "NPS Score",
+    frequency: "Weekly",
+  },
+  {
+    id: "st4",
+    description: "Sprint Retrospective",
+    details: "Facilitate retro and log improvement items.",
+    category: "Process/Tech",
+    kpi: "Action Items Closed",
+    frequency: "Bi-weekly",
+  },
+  {
+    id: "st5",
+    description: "Vendor Compliance Audit",
+    details: "Verify vendor contracts and SLAs.",
+    category: "Process/Tech",
+    kpi: "Audit Pass Rate",
+    frequency: "Monthly",
+  },
+  {
+    id: "st6",
+    description: "Payroll Accuracy Check",
+    details: "Cross-check payroll runs against HRIS records.",
+    category: "Finance",
+    kpi: "Payroll Accuracy %",
+    frequency: "Monthly",
+  },
+  {
+    id: "st7",
+    description: "Customer Escalation Review",
+    details: "Review all Tier 1 escalations from the past week.",
+    category: "Customer",
+    kpi: "Escalation Resolution Time",
+    frequency: "Weekly",
+  },
+  {
+    id: "st8",
+    description: "Security Patch Rollout",
+    details: "Apply and verify latest security patches.",
+    category: "Process/Tech",
+    kpi: "Patch Compliance %",
+    frequency: "Monthly",
+  },
+  {
+    id: "st9",
+    description: "New Hire Onboarding Checklist",
+    details: "Complete onboarding steps for new starters.",
+    category: "People",
+    kpi: "Onboarding Completion",
+    frequency: "Weekly",
+  },
+  {
+    id: "st10",
+    description: "Budget Variance Report",
+    details: "Prepare variance commentary for leadership review.",
+    category: "Finance",
+    kpi: "Variance Accuracy",
+    frequency: "Monthly",
+  },
+  {
+    id: "st11",
+    description: "Customer Health Score Review",
+    details: "Review health scores for top accounts at risk.",
+    category: "Customer",
+    kpi: "At-Risk Accounts Resolved",
+    frequency: "Bi-weekly",
+  },
+  {
+    id: "st12",
+    description: "Employee Engagement Pulse",
+    details: "Distribute and analyze short engagement survey.",
+    category: "People",
+    kpi: "Response Rate",
+    frequency: "Quarterly",
+  },
+];

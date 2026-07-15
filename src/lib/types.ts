@@ -107,8 +107,17 @@ export interface MyPlanTask {
   kpi: string;
   frequency: MyPlanFrequency;
   done: boolean;
+  /** Controlled by the switch. false = Pending, true = In Progress/Completed depending on `done`. */
+  active: boolean;
   /** Timestamp shown once a task is marked done, e.g. "Mon 09:14" */
   completedAt?: string;
+}
+
+export type MyPlanStatus = "Pending" | "In Progress" | "Completed";
+
+export function getMyPlanStatus(active: boolean, done: boolean): MyPlanStatus {
+  if (!active) return "Pending";
+  return done ? "Completed" : "In Progress";
 }
 
 // ---------------------------------------------------------------------------
@@ -155,4 +164,19 @@ export interface TeamDrilldownStats {
   performanceTarget: number;
   teamSize: number;
   initiatives: DrillDownInitiative[];
+}
+
+// ---------------------------------------------------------------------------
+// Directory: standard task templates (org-wide, applied across all BUs)
+// ---------------------------------------------------------------------------
+
+export type StandardTaskFrequency = "Weekly" | "Bi-weekly" | "Monthly" | "Quarterly";
+
+export interface StandardTask {
+  id: string;
+  description: string;
+  details: string;
+  category: CategoryKey;
+  kpi: string;
+  frequency: StandardTaskFrequency;
 }
