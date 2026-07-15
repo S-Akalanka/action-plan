@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/site-header";
-import { PlanSidebar } from "@/components/my-plan/plan-sidebar";
+import { TeamSidebar } from "@/components/team-sidebar";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
@@ -86,7 +86,7 @@ export default function MyPlanPage() {
       <SiteHeader />
 
       <div className="mx-auto flex max-w-[1400px]">
-        <PlanSidebar selectedTeamId={selectedTeamId} onSelect={setSelectedTeamId} />
+        <TeamSidebar selectedTeamId={selectedTeamId} onSelect={setSelectedTeamId} />
 
         <main className="flex-1 px-8 py-8">
           <div className="mb-8 flex flex-wrap items-start justify-between gap-4">

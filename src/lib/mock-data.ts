@@ -10,6 +10,8 @@ import type {
   LedgerTask,
   MyPlanTask,
   Team,
+  ExecutiveTeamSummary,
+  TeamDrilldownStats,
 } from "./types";
 
 /**
@@ -539,3 +541,316 @@ export const MY_PLAN_TASKS: MyPlanTask[] = [
     done: false,
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Executive Summary: aggregate KPI cards
+// ---------------------------------------------------------------------------
+
+export const EXEC_SUMMARY_CARDS: SummaryCardData[] = [
+  {
+    id: "finance",
+    label: "Finance",
+    icon: Landmark,
+    percent: 87,
+    delta: "+2.1%",
+    trend: "up",
+  },
+  {
+    id: "customer",
+    label: "Customer",
+    icon: Headset,
+    percent: 92,
+    delta: "+0.8%",
+    trend: "up",
+  },
+  {
+    id: "process-tech",
+    label: "Process/Tech",
+    icon: Cog,
+    percent: 76,
+    delta: "-1.4%",
+    trend: "down",
+  },
+  {
+    id: "people",
+    label: "People",
+    icon: Users,
+    percent: 89,
+    delta: "0.0%",
+    trend: "neutral",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Executive Summary: per-team rollup (feeds the team cards list)
+// ---------------------------------------------------------------------------
+
+export const TEAM_SUMMARIES: ExecutiveTeamSummary[] = [
+  {
+    teamId: "bu01",
+    overall: 88,
+    status: "On Track",
+    metrics: [
+      { category: "Finance", percent: 90 },
+      { category: "Customer", percent: 95 },
+      { category: "Process/Tech", percent: 75, severity: "low" },
+      { category: "People", percent: 92 },
+    ],
+  },
+  {
+    teamId: "bu02",
+    overall: 74,
+    status: "Needs Attention",
+    metrics: [
+      { category: "Finance", percent: 72, severity: "low" },
+      { category: "Customer", percent: 88 },
+      { category: "Process/Tech", percent: 60, severity: "critical" },
+      { category: "People", percent: 76, severity: "low" },
+    ],
+  },
+  {
+    teamId: "engineering",
+    overall: 81,
+    status: "On Track",
+    metrics: [
+      { category: "Finance", percent: 70 },
+      { category: "Customer", percent: 66 },
+      { category: "Process/Tech", percent: 94 },
+      { category: "People", percent: 94 },
+    ],
+  },
+  {
+    teamId: "hr-admin",
+    overall: 79,
+    status: "On Track",
+    metrics: [
+      { category: "Finance", percent: 81 },
+      { category: "Customer", percent: 70 },
+      { category: "Process/Tech", percent: 68, severity: "low" },
+      { category: "People", percent: 96 },
+    ],
+  },
+  {
+    teamId: "sales-marketing",
+    overall: 68,
+    status: "At Risk",
+    metrics: [
+      { category: "Finance", percent: 58, severity: "critical" },
+      { category: "Customer", percent: 84 },
+      { category: "Process/Tech", percent: 62, severity: "low" },
+      { category: "People", percent: 68, severity: "low" },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Executive Summary: read-only team drill-downs
+// ---------------------------------------------------------------------------
+
+export const TEAM_DRILLDOWNS: Record<string, TeamDrilldownStats> = {
+  bu01: {
+    teamId: "bu01",
+    totalTasks: 186,
+    completed: 142,
+    completedTrendLabel: "+12% vs last month",
+    inProgress: 31,
+    atRisk: 13,
+    performanceIndex: 78,
+    performanceTarget: 85,
+    teamSize: 45,
+    initiatives: [
+      {
+        id: "d1",
+        title: "Implement Automated Reporting",
+        subtitle: "Tech / Process",
+        ownerInitials: "SJ",
+        ownerName: "Sarah J.",
+        frequency: "Monthly",
+        kpi: "Report Cycle Time",
+        status: "Complete",
+      },
+      {
+        id: "d2",
+        title: "Q4 Resource Allocation Review",
+        subtitle: "Finance / Planning",
+        ownerInitials: "MT",
+        ownerName: "Michael T.",
+        frequency: "Quarterly",
+        kpi: "Budget Variance",
+        status: "Pending",
+      },
+      {
+        id: "d3",
+        title: "Customer Escalation Response Time",
+        subtitle: "Customer / Support",
+        ownerInitials: "JR",
+        ownerName: "Jamie R.",
+        frequency: "Weekly",
+        kpi: "Response SLA",
+        status: "In Progress",
+      },
+      {
+        id: "d4",
+        title: "Warehouse Safety Audit",
+        subtitle: "People / Compliance",
+        ownerInitials: "AL",
+        ownerName: "Alex L.",
+        frequency: "Quarterly",
+        kpi: "Audit Pass Rate",
+        status: "Complete",
+      },
+    ],
+  },
+  bu02: {
+    teamId: "bu02",
+    totalTasks: 142,
+    completed: 88,
+    completedTrendLabel: "-4% vs last month",
+    inProgress: 34,
+    atRisk: 20,
+    performanceIndex: 64,
+    performanceTarget: 85,
+    teamSize: 32,
+    initiatives: [
+      {
+        id: "d5",
+        title: "Localize Product Catalog for EU Launch",
+        subtitle: "Tech / Process",
+        ownerInitials: "EH",
+        ownerName: "Elena H.",
+        frequency: "Monthly",
+        kpi: "Localization Coverage",
+        status: "In Progress",
+      },
+      {
+        id: "d6",
+        title: "Distributor Contract Renegotiation",
+        subtitle: "Finance / Planning",
+        ownerInitials: "DK",
+        ownerName: "David K.",
+        frequency: "Quarterly",
+        kpi: "Margin Target",
+        status: "Pending",
+      },
+      {
+        id: "d7",
+        title: "Freight Delay Escalation Process",
+        subtitle: "Process / Tech",
+        ownerInitials: "NP",
+        ownerName: "Nadia P.",
+        frequency: "Weekly",
+        kpi: "On-Time Delivery",
+        status: "Pending",
+      },
+    ],
+  },
+  engineering: {
+    teamId: "engineering",
+    totalTasks: 97,
+    completed: 71,
+    completedTrendLabel: "+6% vs last month",
+    inProgress: 18,
+    atRisk: 8,
+    performanceIndex: 81,
+    performanceTarget: 85,
+    teamSize: 22,
+    initiatives: [
+      {
+        id: "d8",
+        title: "Fix Critical Auth Bug in Staging",
+        subtitle: "Process / Tech",
+        ownerInitials: "TL",
+        ownerName: "Tom L.",
+        frequency: "Weekly",
+        kpi: "Bug Resolution SLA",
+        status: "Complete",
+      },
+      {
+        id: "d9",
+        title: "Clear Code Review Backlog",
+        subtitle: "Process / Tech",
+        ownerInitials: "PR",
+        ownerName: "Priya R.",
+        frequency: "Weekly",
+        kpi: "Review Turnaround",
+        status: "In Progress",
+      },
+    ],
+  },
+  "hr-admin": {
+    teamId: "hr-admin",
+    totalTasks: 64,
+    completed: 49,
+    completedTrendLabel: "+3% vs last month",
+    inProgress: 11,
+    atRisk: 4,
+    performanceIndex: 79,
+    performanceTarget: 85,
+    teamSize: 14,
+    initiatives: [
+      {
+        id: "d10",
+        title: "Process Q4 Payroll Adjustments",
+        subtitle: "Finance / Planning",
+        ownerInitials: "KW",
+        ownerName: "Kim W.",
+        frequency: "Monthly",
+        kpi: "Payroll Accuracy",
+        status: "Pending",
+      },
+      {
+        id: "d11",
+        title: "Run Quarterly Engagement Survey",
+        subtitle: "People / Compliance",
+        ownerInitials: "RB",
+        ownerName: "Ravi B.",
+        frequency: "Quarterly",
+        kpi: "Survey Response Rate",
+        status: "In Progress",
+      },
+    ],
+  },
+  "sales-marketing": {
+    teamId: "sales-marketing",
+    totalTasks: 118,
+    completed: 61,
+    completedTrendLabel: "-9% vs last month",
+    inProgress: 28,
+    atRisk: 29,
+    performanceIndex: 68,
+    performanceTarget: 85,
+    teamSize: 27,
+    initiatives: [
+      {
+        id: "d12",
+        title: "Finalize Q4 Campaign Budget",
+        subtitle: "Finance / Planning",
+        ownerInitials: "CG",
+        ownerName: "Chloe G.",
+        frequency: "Quarterly",
+        kpi: "Budget Variance",
+        status: "Pending",
+      },
+      {
+        id: "d13",
+        title: "Review Lead Conversion Funnel",
+        subtitle: "Customer / Growth",
+        ownerInitials: "OM",
+        ownerName: "Omar M.",
+        frequency: "Weekly",
+        kpi: "Conversion Rate",
+        status: "Complete",
+      },
+      {
+        id: "d14",
+        title: "Refresh Brand Messaging Deck",
+        subtitle: "Process / Tech",
+        ownerInitials: "LS",
+        ownerName: "Lena S.",
+        frequency: "Monthly",
+        kpi: "Deck Completion",
+        status: "In Progress",
+      },
+    ],
+  },
+};

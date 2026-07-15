@@ -110,3 +110,49 @@ export interface MyPlanTask {
   /** Timestamp shown once a task is marked done, e.g. "Mon 09:14" */
   completedAt?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Executive Summary (CEO read-only view)
+// ---------------------------------------------------------------------------
+
+export type TeamStatus = "On Track" | "Needs Attention" | "At Risk";
+
+export interface TeamCategoryMetric {
+  category: CategoryKey;
+  percent: number;
+  severity?: "critical" | "low";
+}
+
+export interface ExecutiveTeamSummary {
+  teamId: string;
+  overall: number;
+  status: TeamStatus;
+  metrics: TeamCategoryMetric[];
+}
+
+export type InitiativeStatus = "Complete" | "In Progress" | "Pending";
+
+export interface DrillDownInitiative {
+  id: string;
+  title: string;
+  /** e.g. "Tech / Process" */
+  subtitle: string;
+  ownerInitials: string;
+  ownerName: string;
+  frequency: Frequency;
+  kpi: string;
+  status: InitiativeStatus;
+}
+
+export interface TeamDrilldownStats {
+  teamId: string;
+  totalTasks: number;
+  completed: number;
+  completedTrendLabel: string;
+  inProgress: number;
+  atRisk: number;
+  performanceIndex: number;
+  performanceTarget: number;
+  teamSize: number;
+  initiatives: DrillDownInitiative[];
+}
