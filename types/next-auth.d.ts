@@ -11,7 +11,7 @@ declare module "next-auth" {
     user: {
       id: string;
       role: "TEAM" | "ADMIN" | "CEO";
-      microsoftId: string;
+      username: string;
     } & DefaultSession["user"];
   }
 }

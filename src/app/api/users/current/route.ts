@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { microsoftId: session.user.microsoftId },
+    where: { id: session.user.id },
   });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -21,6 +21,6 @@ export async function GET() {
     userId: user.id,
     name: user.name,
     role: user.role,
-    microsoftId: user.microsoftId,
+    username: user.username,
   });
 }

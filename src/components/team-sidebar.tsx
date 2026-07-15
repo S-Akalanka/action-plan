@@ -3,14 +3,11 @@
 import { Plus, LayoutGrid } from "lucide-react";
 import { TEAMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useTeam } from "@/lib/team-context";
 
-export function TeamSidebar({
-  selectedTeamId,
-  onSelect,
-}: {
-  selectedTeamId: string | null;
-  onSelect: (teamId: string) => void;
-}) {
+export function TeamSidebar() {
+  const { selectedTeamId, setSelectedTeamId } = useTeam();
+
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-[#E5E9F0] bg-white px-4 py-6 md:flex">
       <div>
@@ -33,7 +30,7 @@ export function TeamSidebar({
             return (
               <button
                 key={team.id}
-                onClick={() => onSelect(team.id)}
+                onClick={() => setSelectedTeamId(team.id)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
                   active

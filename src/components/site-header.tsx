@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/", label: "Dashboard" },
-  { href: "/action-plans", label: "Action Plans" },
-  { href: "/reports", label: "Reports" },
+  { href: "/my-plan", label: "Action Plans" },
+  { href: "/executive-summary", label: "Reports" },
   { href: "/directory", label: "Directory" },
 ];
 

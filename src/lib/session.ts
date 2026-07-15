@@ -1,38 +1,80 @@
-import NextAuth from "next-auth";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import NextAuth, { type NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
+import { getServerSession } from "next-auth/next";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
-      issuer: `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID}/v2.0`,
+    CredentialsProvider({
+      name: "Manual ID",
+      credentials: {
+        username: { label: "Username / Manual ID", type: "text", placeholder: "e.g., admin1" },
+        name: { label: "Name (optional)", type: "text", placeholder: "e.g., John Doe" },
+        role: { label: "Role (optional)", type: "text", placeholder: "TEAM, ADMIN, or CEO" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.username) return null;
+
+        const username = credentials.username.trim();
+        const roleInput = (credentials.role || "").toUpperCase();
+        const role = ["TEAM", "ADMIN", "CEO"].includes(roleInput) ? (roleInput as "TEAM" | "ADMIN" | "CEO") : "TEAM";
+
+        // Find user by username
+        let user = await prisma.user.findUnique({
+          where: { username },
+        });
+
+        // Auto-create user if they don't exist yet for seamless manual usage
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              username,
+              name: credentials.name?.trim() || username,
+              role,
+            },
+          });
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          username: user.username,
+        } as any;
+      },
     }),
   ],
   callbacks: {
-    async session({ session, token }) {
-      if (!session.user?.email) return session;
-
-      const microsoftId = token.sub as string;
-
-      let user = await prisma.user.findUnique({ where: { microsoftId } });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            microsoftId,
-            name: session.user.name ?? "Unknown",
-            role: "TEAM",
-          },
-        });
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as any).role;
+        token.username = (user as any).username;
       }
-
-      session.user.id = user.id;
-      session.user.microsoftId = user.microsoftId;
-      session.user.role = user.role;
-
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as "TEAM" | "ADMIN" | "CEO";
+        session.user.username = token.username as string;
+      }
       return session;
     },
   },
-});
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET || "default-development-secret-key",
+};
+
+const handler = NextAuth(authOptions);
+
+export const handlers = {
+  GET: handler,
+  POST: handler,
+};
+
+export async function auth() {
+  return await getServerSession(authOptions);
+}

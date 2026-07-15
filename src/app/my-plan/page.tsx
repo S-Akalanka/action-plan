@@ -3,23 +3,24 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/site-header";
-import { TeamSidebar } from "@/components/team-sidebar";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
 import { CATEGORIES, MY_PLAN_TASKS, TEAMS } from "@/lib/mock-data";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
+import { useTeam } from "@/lib/team-context";
 
 export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>(MY_PLAN_TASKS);
   const [adding, setAdding] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState(TEAMS[0].id);
+  const { selectedTeamId } = useTeam();
 
-  const selectedTeam = TEAMS.find((t) => t.id === selectedTeamId) ?? TEAMS[0];
+  const activeTeamId = selectedTeamId || TEAMS[0].id;
+  const selectedTeam = TEAMS.find((t) => t.id === activeTeamId) ?? TEAMS[0];
+
   const teamTasks = useMemo(
-    () => tasks.filter((t) => t.teamId === selectedTeamId),
-    [tasks, selectedTeamId]
+    () => tasks.filter((t) => t.teamId === activeTeamId),
+    [tasks, activeTeamId]
   );
 
   const overallPercent = useMemo(() => {
@@ -75,7 +76,7 @@ export default function MyPlanPage() {
       ...prev,
       {
         id: `m${Date.now()}`,
-        teamId: selectedTeamId,
+        teamId: activeTeamId,
         desc: data.desc,
         category: data.category,
         kpi: data.kpi,
@@ -88,68 +89,55 @@ export default function MyPlanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F6F8] text-[#16233F]">
-      <SiteHeader />
-
-      <div className="mx-auto flex max-w-[1400px]">
-        <TeamSidebar
-          teams={TEAMS}
-          selectedTeamId={selectedTeamId}
-          onSelect={setSelectedTeamId}
-        />
-
-        <main className="flex-1 px-8 py-8">
-          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">My Action Plan</h1>
-              <p className="mt-1 text-sm text-[#5B6472]">
-                Week 42 · {selectedTeam.label}
-              </p>
-            </div>
-            <Button
-              onClick={() => setAdding((v) => !v)}
-              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
-            >
-              <Plus className="h-4 w-4" />
-              Add task
-            </Button>
-          </div>
-
-          <div className="mb-8">
-            <SummaryStrip overallPercent={overallPercent} categoryStats={categoryStats} />
-          </div>
-
-          {adding && (
-            <div className="mb-8">
-              <AddAdHocTaskForm
-                categories={CATEGORIES}
-                onSave={addTask}
-                onCancel={() => setAdding(false)}
-              />
-            </div>
-          )}
-
-          <div className="space-y-6">
-            {CATEGORIES.map((cat) => (
-              <TaskGroup
-                key={cat.key}
-                icon={cat.icon}
-                label={cat.key}
-                tasks={teamTasks.filter((t) => t.category === cat.key)}
-                onToggle={toggle}
-                onToggleActive={toggleActive}
-                onDelete={deleteTask}
-              />
-            ))}
-          </div>
-
-          {teamTasks.length === 0 && (
-            <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
-              No tasks tracked for {selectedTeam.label} yet.
-            </div>
-          )}
-        </main>
+    <main className="flex-1 px-8 py-8">
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">My Action Plan</h1>
+          <p className="mt-1 text-sm text-[#5B6472]">
+            Week 42 · {selectedTeam.label}
+          </p>
+        </div>
+        <Button
+          onClick={() => setAdding((v) => !v)}
+          className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
+        >
+          <Plus className="h-4 w-4" />
+          Add task
+        </Button>
       </div>
-    </div>
+
+      <div className="mb-8">
+        <SummaryStrip overallPercent={overallPercent} categoryStats={categoryStats} />
+      </div>
+
+      {adding && (
+        <div className="mb-8">
+          <AddAdHocTaskForm
+            onSave={addTask}
+            onCancel={() => setAdding(false)}
+          />
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {CATEGORIES.map((cat) => (
+          <TaskGroup
+            key={cat.key}
+            icon={cat.icon}
+            label={cat.key}
+            tasks={teamTasks.filter((t) => t.category === cat.key)}
+            onToggle={toggle}
+            onToggleActive={toggleActive}
+            onDelete={deleteTask}
+          />
+        ))}
+      </div>
+
+      {teamTasks.length === 0 && (
+        <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
+          No tasks tracked for {selectedTeam.label} yet.
+        </div>
+      )}
+    </main>
   );
 }

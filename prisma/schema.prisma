@@ -42,10 +42,10 @@ enum Status {
 //  Models 
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  microsoftId String   @unique
-  role        Role     @default(TEAM)
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  role      Role     @default(TEAM)
 
   memberships    Membership[]
   createdTasks   Task[]         @relation("TaskCreator")
