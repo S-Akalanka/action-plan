@@ -15,12 +15,17 @@ export default function MyPlanPage() {
   const [adding, setAdding] = useState(false);
   const { selectedTeamId } = useTeam();
 
-  const activeTeamId = selectedTeamId || TEAMS[0].id;
-  const selectedTeam = TEAMS.find((t) => t.id === activeTeamId) ?? TEAMS[0];
+  // null selectedTeamId = Overview → show all tasks across all teams
+  const selectedTeam = selectedTeamId
+    ? TEAMS.find((t) => t.id === selectedTeamId) ?? null
+    : null;
 
   const teamTasks = useMemo(
-    () => tasks.filter((t) => t.teamId === activeTeamId),
-    [tasks, activeTeamId]
+    () =>
+      selectedTeamId
+        ? tasks.filter((t) => t.teamId === selectedTeamId)
+        : tasks, // Overview: all tasks
+    [tasks, selectedTeamId]
   );
 
   const overallPercent = useMemo(() => {
@@ -76,7 +81,7 @@ export default function MyPlanPage() {
       ...prev,
       {
         id: `m${Date.now()}`,
-        teamId: activeTeamId,
+        teamId: selectedTeamId ?? TEAMS[0].id,
         desc: data.desc,
         category: data.category,
         kpi: data.kpi,
@@ -94,7 +99,7 @@ export default function MyPlanPage() {
         <div>
           <h1 className="text-2xl font-bold">My Action Plan</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Week 42 · {selectedTeam.label}
+            Week 42 · {selectedTeam ? selectedTeam.label : "All Business Units"}
           </p>
         </div>
         <Button
@@ -135,7 +140,7 @@ export default function MyPlanPage() {
 
       {teamTasks.length === 0 && (
         <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
-          No tasks tracked for {selectedTeam.label} yet.
+          No tasks tracked{selectedTeam ? ` for ${selectedTeam.label}` : ""} yet.
         </div>
       )}
     </main>

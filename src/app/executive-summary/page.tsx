@@ -1,15 +1,13 @@
-"use client";
-
 import { KpiCard } from "@/components/executive-summary/kpi-card";
 import { TeamSummaryCard } from "@/components/executive-summary/team-summary-card";
 import { EXEC_SUMMARY_CARDS, TEAMS, TEAM_SUMMARIES } from "@/lib/mock-data";
-import { useTeam } from "@/lib/team-context";
 
+/**
+ * Executive Summary – Overview page (/executive-summary)
+ * Shows aggregate KPI cards + a summary card for every team.
+ * Individual teams are explored via the sidebar links → /executive-summary/[teamId]
+ */
 export default function ExecutiveSummaryPage() {
-  const { selectedTeamId } = useTeam();
-
-  const teamsToShow = selectedTeamId ? TEAMS.filter((t) => t.id === selectedTeamId) : TEAMS;
-
   return (
     <main className="flex-1 px-8 py-8">
       <div className="mb-8">
@@ -26,7 +24,7 @@ export default function ExecutiveSummaryPage() {
       </div>
 
       <div className="space-y-4">
-        {teamsToShow.map((team) => {
+        {TEAMS.map((team) => {
           const summary = TEAM_SUMMARIES.find((s) => s.teamId === team.id);
           if (!summary) return null;
           return <TeamSummaryCard key={team.id} team={team} summary={summary} />;

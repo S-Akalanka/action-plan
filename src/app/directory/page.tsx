@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StandardTasksTable } from "@/components/directory/standard-tasks-table";
 import { StandardTaskFormDialog } from "@/components/directory/standard-task-form-dialog";
 import { Pagination } from "@/components/directory/pagination";
-import { STANDARD_TASKS } from "@/lib/mock-data";
+import { TEAMS, STANDARD_TASKS } from "@/lib/mock-data";
 import type { StandardTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 
@@ -19,10 +19,19 @@ export default function DirectoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<StandardTask | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
+  const selectedTeam = selectedTeamId
+    ? TEAMS.find((t) => t.id === selectedTeamId)
+    : null;
+
+  const filteredTasks = useMemo(() => {
+    if (!selectedTeamId) return tasks;
+    return tasks.filter((t) => t.teamId === selectedTeamId);
+  }, [tasks, selectedTeamId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
   const pageTasks = useMemo(
-    () => tasks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [tasks, page]
+    () => filteredTasks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredTasks, page]
   );
 
   const openAddDialog = () => {
@@ -43,7 +52,14 @@ export default function DirectoryPage() {
     if (id) {
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
     } else {
-      setTasks((prev) => [...prev, { id: `st${Date.now()}`, ...data }]);
+      setTasks((prev) => [
+        ...prev,
+        {
+          id: `st${Date.now()}`,
+          ...data,
+          teamId: selectedTeamId || undefined,
+        },
+      ]);
     }
   };
 
@@ -53,7 +69,7 @@ export default function DirectoryPage() {
         <div>
           <h1 className="text-2xl font-bold">Manage Standard Tasks</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Administer global tasks applied across business units.
+            Administer global tasks applied across business units · {selectedTeam ? selectedTeam.label : "All Business Units"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -62,7 +78,7 @@ export default function DirectoryPage() {
           </span>
           <Button
             onClick={openAddDialog}
-            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
+            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
           >
             <Plus className="h-4 w-4" />
             Add Standard Task
@@ -75,7 +91,7 @@ export default function DirectoryPage() {
         <Pagination
           page={page}
           totalPages={totalPages}
-          totalEntries={tasks.length}
+          totalEntries={filteredTasks.length}
           pageSize={PAGE_SIZE}
           onPageChange={setPage}
         />

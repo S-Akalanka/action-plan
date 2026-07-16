@@ -179,4 +179,5 @@ export interface StandardTask {
   category: CategoryKey;
   kpi: string;
   frequency: StandardTaskFrequency;
+  teamId?: string; // Optional team filter
 }

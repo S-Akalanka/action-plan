@@ -39,7 +39,6 @@ export function StandardTaskFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Pass a task to edit it; omit to create a new one. */
   initialTask?: StandardTask | null;
   onSave: (data: Omit<StandardTask, "id">, id?: string) => void;
 }) {
@@ -169,7 +168,7 @@ export function StandardTaskFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-[#16233F] hover:bg-[#0F1A30]">
+          <Button onClick={handleSave} className="bg-[#16233F] hover:bg-[#0F1A30] text-white">
             {isEditing ? "Save Changes" : "Add Task"}
           </Button>
         </DialogFooter>

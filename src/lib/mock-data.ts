@@ -887,6 +887,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Finance",
     kpi: "Ledger Accuracy %",
     frequency: "Monthly",
+    teamId: "bu01",
   },
   {
     id: "st2",
@@ -895,6 +896,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "People",
     kpi: "Completion Rate",
     frequency: "Quarterly",
+    teamId: "hr-admin",
   },
   {
     id: "st3",
@@ -903,6 +905,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Customer",
     kpi: "NPS Score",
     frequency: "Weekly",
+    teamId: "sales-marketing",
   },
   {
     id: "st4",
@@ -911,6 +914,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Process/Tech",
     kpi: "Action Items Closed",
     frequency: "Bi-weekly",
+    teamId: "engineering",
   },
   {
     id: "st5",
@@ -919,6 +923,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Process/Tech",
     kpi: "Audit Pass Rate",
     frequency: "Monthly",
+    teamId: "bu02",
   },
   {
     id: "st6",
@@ -927,6 +932,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Finance",
     kpi: "Payroll Accuracy %",
     frequency: "Monthly",
+    teamId: "hr-admin",
   },
   {
     id: "st7",
@@ -935,6 +941,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Customer",
     kpi: "Escalation Resolution Time",
     frequency: "Weekly",
+    teamId: "bu01",
   },
   {
     id: "st8",
@@ -943,6 +950,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Process/Tech",
     kpi: "Patch Compliance %",
     frequency: "Monthly",
+    teamId: "engineering",
   },
   {
     id: "st9",
@@ -951,6 +959,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "People",
     kpi: "Onboarding Completion",
     frequency: "Weekly",
+    teamId: "hr-admin",
   },
   {
     id: "st10",
@@ -959,6 +968,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Finance",
     kpi: "Variance Accuracy",
     frequency: "Monthly",
+    teamId: "bu02",
   },
   {
     id: "st11",
@@ -967,6 +977,7 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "Customer",
     kpi: "At-Risk Accounts Resolved",
     frequency: "Bi-weekly",
+    teamId: "sales-marketing",
   },
   {
     id: "st12",
@@ -975,5 +986,6 @@ export const STANDARD_TASKS: StandardTask[] = [
     category: "People",
     kpi: "Response Rate",
     frequency: "Quarterly",
+    teamId: "hr-admin",
   },
 ];

@@ -1,22 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+
 import { SUMMARY_CARDS, UNITS, TEAMS } from "@/lib/mock-data";
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
-import { useTeam } from "@/lib/team-context";
+
 
 export default function DashboardHome() {
-  const { selectedTeamId } = useTeam();
-
-  const activeTeamId = selectedTeamId || TEAMS[0].id;
-  const activeTeam = TEAMS.find((t) => t.id === activeTeamId) ?? TEAMS[0];
 
   return (
     <main className="flex-1 px-8 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Overview Dashboard</h1>
         <p className="mt-1 text-sm text-[#5B6472]">
-          Welcome back! Active business unit: <strong className="text-[#16233F]">{activeTeam.label}</strong>
+          Company-wide performance at a glance
         </p>
       </div>
 

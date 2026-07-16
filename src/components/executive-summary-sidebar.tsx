@@ -1,17 +1,13 @@
 "use client";
 
-import { Plus, LayoutGrid } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutGrid } from "lucide-react";
 import { TEAMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import { useTeam } from "@/lib/team-context";
-import { usePathname } from "next/navigation";
 
-export function TeamSidebar() {
-  const { selectedTeamId, setSelectedTeamId } = useTeam();
+export function ExecutiveSummarySidebar() {
   const pathname = usePathname();
-
-  // No sidebar on the main dashboard or executive-summary (which has its own)
-  if (pathname === "/" || pathname.startsWith("/executive-summary")) return null;
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-[#E5E9F0] bg-white px-4 py-6 md:flex">
@@ -22,20 +18,36 @@ export function TeamSidebar() {
           </div>
           <div>
             <p className="text-sm font-semibold leading-tight text-[#16233F]">
-              Business Units
+              Executive View
             </p>
             <p className="text-xs text-[#9AA3B2]">Internal Tooling</p>
           </div>
         </div>
 
         <nav className="space-y-1">
+          {/* Overview link */}
+          <Link
+            href="/executive-summary"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname === "/executive-summary"
+                ? "bg-[#DCEBFC] text-[#16233F]"
+                : "text-[#5B6472] hover:bg-[#F5F6F8]"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Overview
+          </Link>
+
+          {/* Per-team links */}
           {TEAMS.map((team) => {
             const Icon = team.icon;
-            const active = selectedTeamId === team.id;
+            const href = `/executive-summary/${team.id}`;
+            const active = pathname === href;
             return (
-              <button
+              <Link
                 key={team.id}
-                onClick={() => setSelectedTeamId(team.id)}
+                href={href}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
                   active
@@ -45,16 +57,11 @@ export function TeamSidebar() {
               >
                 <Icon className="h-4 w-4" />
                 {team.label}
-              </button>
+              </Link>
             );
           })}
         </nav>
       </div>
-
-      <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#16233F] py-2.5 text-sm font-medium text-white hover:bg-[#0F1A30]">
-        <Plus className="h-4 w-4" />
-        New Action Plan
-      </button>
     </aside>
   );
 }
