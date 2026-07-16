@@ -67,7 +67,6 @@ export function MyPlanTaskRow({
         <Switch
           checked={task.active}
           onCheckedChange={onToggleActive}
-          className="data-[state=checked]:bg-[#16233F]"
           aria-label="Toggle active"
         />
         <button

@@ -124,7 +124,7 @@ export function getMyPlanStatus(active: boolean, done: boolean): MyPlanStatus {
 // Executive Summary (CEO read-only view)
 // ---------------------------------------------------------------------------
 
-export type TeamStatus = "On Track" | "Needs Attention" | "At Risk";
+export type TeamStatus = "On Track" | "Needs Attention" | "Pending";
 
 export interface TeamCategoryMetric {
   category: CategoryKey;

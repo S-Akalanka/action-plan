@@ -1,14 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ProgressBar } from "@/components/progress-bar";
-import { cn } from "@/lib/utils";
 import type { ExecutiveTeamSummary, Team } from "@/lib/types";
-
-const STATUS_STYLES: Record<ExecutiveTeamSummary["status"], string> = {
-  "On Track": "bg-[#DCFCE7] text-[#16A34A]",
-  "Needs Attention": "bg-[#FEF3C7] text-[#B45309]",
-  "At Risk": "bg-[#FEE2E2] text-[#DC2626]",
-};
 
 export function TeamSummaryCard({
   team,
@@ -23,14 +16,6 @@ export function TeamSummaryCard({
         <p className="text-lg font-bold text-[#16233F]">{team.label}</p>
         <div className="mt-2 flex items-center gap-3">
           <span className="text-3xl font-bold text-[#16233F]">{summary.overall}%</span>
-          <span
-            className={cn(
-              "rounded-md px-2 py-1 text-xs font-semibold",
-              STATUS_STYLES[summary.status]
-            )}
-          >
-            {summary.status}
-          </span>
         </div>
       </div>
 

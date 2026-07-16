@@ -1,12 +1,7 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { SummaryCardData } from "@/lib/types";
 
 export function KpiCard({ card }: { card: SummaryCardData }) {
   const Icon = card.icon;
-  const TrendIcon = card.trend === "up" ? TrendingUp : card.trend === "down" ? TrendingDown : Minus;
-  const trendColor =
-    card.trend === "up" ? "text-[#16A34A]" : card.trend === "down" ? "text-[#EA580C]" : "text-[#9AA3B2]";
 
   return (
     <div className="rounded-xl border border-[#E5E9F0] bg-white p-6 shadow-sm">
@@ -23,10 +18,6 @@ export function KpiCard({ card }: { card: SummaryCardData }) {
       </p>
       <div className="flex items-baseline gap-2">
         <span className="text-4xl font-bold text-[#16233F]">{card.percent}%</span>
-        <span className={cn("flex items-center gap-1 text-sm font-medium", trendColor)}>
-          <TrendIcon className="h-4 w-4" />
-          {card.delta}
-        </span>
       </div>
     </div>
   );

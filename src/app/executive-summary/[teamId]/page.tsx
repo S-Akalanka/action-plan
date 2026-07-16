@@ -59,9 +59,6 @@ export default function TeamDrilldownPage({
               <ClipboardCheck className="h-4 w-4 text-[#16233F]" />
               <h2 className="text-base font-bold">Task Stats</h2>
             </div>
-            <span className="rounded-md bg-[#F1F2F5] px-2.5 py-1 text-xs font-medium text-[#5B6472]">
-              This Quarter
-            </span>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-lg border border-[#E5E9F0] p-4">
@@ -76,9 +73,6 @@ export default function TeamDrilldownPage({
                 Completed
               </p>
               <p className="mt-2 text-2xl font-bold text-[#16233F]">{stats.completed}</p>
-              <p className="mt-1 text-xs font-medium text-[#16A34A]">
-                {stats.completedTrendLabel}
-              </p>
             </div>
             <div className="rounded-lg border border-[#E5E9F0] p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
@@ -89,10 +83,10 @@ export default function TeamDrilldownPage({
             </div>
             <div className="rounded-lg border border-[#E5E9F0] p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
-                At Risk
+                Pending
               </p>
-              <p className="mt-2 text-2xl font-bold text-[#DC2626]">{stats.atRisk}</p>
-              <p className="mt-1 text-xs font-medium text-[#DC2626]">Needs escalation</p>
+              <p className="mt-2 text-2xl font-bold text-[#5B6472]">{stats.atRisk}</p>
+              <p className="mt-1 text-xs text-[#9AA3B2]">Needs attention</p>
             </div>
           </div>
         </div>

@@ -54,6 +54,7 @@ export default function MyPlanPage() {
           ? {
               ...t,
               done: !t.done,
+              active: !t.done ? true : t.active,
               completedAt: !t.done
                 ? new Date().toLocaleDateString("en-US", { weekday: "short" }) +
                   " " +
@@ -73,7 +74,18 @@ export default function MyPlanPage() {
 
   const toggleActive = (id: string) =>
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, active: !t.active } : t))
+      prev.map((t) => {
+        if (t.id === id) {
+          const nextActive = !t.active;
+          return {
+            ...t,
+            active: nextActive,
+            done: nextActive ? t.done : false,
+            completedAt: nextActive ? t.completedAt : undefined,
+          };
+        }
+        return t;
+      })
     );
 
   const addTask = (data: { desc: string; category: CategoryKey; kpi: string }) => {

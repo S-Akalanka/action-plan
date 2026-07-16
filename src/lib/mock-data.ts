@@ -653,7 +653,7 @@ export const TEAM_SUMMARIES: ExecutiveTeamSummary[] = [
   {
     teamId: "sales-marketing",
     overall: 68,
-    status: "At Risk",
+    status: "Pending",
     metrics: [
       { category: "Finance", percent: 58, severity: "critical" },
       { category: "Customer", percent: 84 },

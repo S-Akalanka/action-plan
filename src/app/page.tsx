@@ -2,7 +2,6 @@
 
 
 import { SUMMARY_CARDS, UNITS, TEAMS } from "@/lib/mock-data";
-import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
 
 export default function DashboardHome() {
@@ -20,8 +19,6 @@ export default function DashboardHome() {
       <div className="mb-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {SUMMARY_CARDS.map((card) => {
           const Icon = card.icon;
-          const isUp = card.trend === "up";
-          const isDown = card.trend === "down";
 
           return (
             <div
@@ -36,16 +33,6 @@ export default function DashboardHome() {
               </div>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="text-3xl font-bold tracking-tight">{card.percent}%</span>
-                <span
-                  className={`flex items-center gap-0.5 text-xs font-semibold ${
-                    isUp ? "text-green-600" : isDown ? "text-red-600" : "text-gray-500"
-                  }`}
-                >
-                  {isUp && <ArrowUpRight className="h-3 w-3" />}
-                  {isDown && <ArrowDownRight className="h-3 w-3" />}
-                  {!isUp && !isDown && <Minus className="h-3 w-3" />}
-                  {card.delta}
-                </span>
               </div>
             </div>
           );
