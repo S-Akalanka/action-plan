@@ -10,8 +10,8 @@ export function TeamSidebar() {
   const { selectedTeamId, setSelectedTeamId } = useTeam();
   const pathname = usePathname();
 
-  // No sidebar on the main dashboard or executive-summary (which has its own)
-  if (pathname === "/" || pathname.startsWith("/executive-summary")) return null;
+  // No sidebar on the main dashboard or dashboard (which has its own)
+  if (pathname === "/" || pathname.startsWith("/dashboard")) return null;
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-[#E5E9F0] bg-white px-4 py-6 md:flex">

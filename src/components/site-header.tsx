@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "/", label: "Dashboard" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/my-plan", label: "Action Plans" },
-  { href: "/executive-summary", label: "Reports" },
-  { href: "/directory", label: "Directory" },
+  { href: "/manage-tasks", label: "Manage Tasks" },
 ];
 
 export function SiteHeader({

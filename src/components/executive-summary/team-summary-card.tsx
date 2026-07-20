@@ -32,7 +32,7 @@ export function TeamSummaryCard({
       </div>
 
       <Link
-        href={`/executive-summary/${team.id}`}
+        href={`/dashboard/${team.id}`}
         className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#16233F] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0F1A30]"
       >
         View Details

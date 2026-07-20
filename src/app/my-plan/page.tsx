@@ -15,7 +15,6 @@ export default function MyPlanPage() {
   const [adding, setAdding] = useState(false);
   const { selectedTeamId } = useTeam();
 
-  // null selectedTeamId = Overview → show all tasks across all teams
   const selectedTeam = selectedTeamId
     ? TEAMS.find((t) => t.id === selectedTeamId) ?? null
     : null;
@@ -24,7 +23,7 @@ export default function MyPlanPage() {
     () =>
       selectedTeamId
         ? tasks.filter((t) => t.teamId === selectedTeamId)
-        : tasks, // Overview: all tasks
+        : tasks,
     [tasks, selectedTeamId]
   );
 
@@ -116,7 +115,7 @@ export default function MyPlanPage() {
         </div>
         <Button
           onClick={() => setAdding((v) => !v)}
-          className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30]"
+          className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
         >
           <Plus className="h-4 w-4" />
           Add task

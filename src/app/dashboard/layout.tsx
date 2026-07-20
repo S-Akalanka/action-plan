@@ -4,7 +4,7 @@
  * URL-based navigation automatically when pathname starts with /executive-summary.
  * This layout simply passes children through unchanged.
  */
-export default function ExecutiveSummaryLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;

@@ -11,11 +11,11 @@ import { useTeam } from "@/lib/team-context";
  * Unified sidebar shown on all pages except the main dashboard (/).
  *
  * Behaviour by section:
- * - /executive-summary  → URL navigation: Overview = /executive-summary,
- *                         team = /executive-summary/[teamId]
+ * - /dashboard  → URL navigation: Overview = /dashboard,
+ *                         team = /dashboard/[teamId]
  * - /my-plan            → Context: Overview clears selectedTeamId (shows all tasks),
  *                         team sets selectedTeamId
- * - /directory          → Context: same pattern as my-plan
+ * - /manage-tasks          → Context: same pattern as my-plan
  */
 export function AppSidebar() {
   const pathname = usePathname();
@@ -24,11 +24,11 @@ export function AppSidebar() {
   // No sidebar on the main dashboard
   if (pathname === "/") return null;
 
-  const isExecSummary = pathname.startsWith("/executive-summary");
+  const isExecSummary = pathname.startsWith("/dashboard");
 
   // For exec-summary the active state is driven by the URL
   const overviewActive = isExecSummary
-    ? pathname === "/executive-summary"
+    ? pathname === "/dashboard"
     : !selectedTeamId;
 
   return (
@@ -50,7 +50,7 @@ export function AppSidebar() {
           {/* ── Overview ── */}
           {isExecSummary ? (
             <Link
-              href="/executive-summary"
+              href="/dashboard"
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 overviewActive
@@ -79,7 +79,7 @@ export function AppSidebar() {
           {/* ── Teams ── */}
           {TEAMS.map((team) => {
             const Icon = team.icon;
-            const href = `/executive-summary/${team.id}`;
+            const href = `/dashboard/${team.id}`;
             const active = isExecSummary
               ? pathname === href
               : selectedTeamId === team.id;

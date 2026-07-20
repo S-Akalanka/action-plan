@@ -3,16 +3,16 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StandardTasksTable } from "@/components/directory/standard-tasks-table";
-import { StandardTaskFormDialog } from "@/components/directory/standard-task-form-dialog";
-import { Pagination } from "@/components/directory/pagination";
+import { StandardTasksTable } from "@/components/manage-tasks/standard-tasks-table";
+import { StandardTaskFormDialog } from "@/components/manage-tasks/standard-task-form-dialog";
+import { Pagination } from "@/components/manage-tasks/pagination";
 import { TEAMS, STANDARD_TASKS } from "@/lib/mock-data";
 import type { StandardTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 
 const PAGE_SIZE = 5;
 
-export default function DirectoryPage() {
+export default function ManageTasksPage() {
   const [tasks, setTasks] = useState<StandardTask[]>(STANDARD_TASKS);
   const [page, setPage] = useState(1);
   const { selectedTeamId } = useTeam();

@@ -2,14 +2,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { getMyPlanStatus } from "@/lib/types";
 import type { MyPlanTask } from "@/lib/types";
-
-const STATUS_STYLES = {
-  Pending: "bg-[#F1F2F5] text-[#5B6472]",
-  "In Progress": "bg-[#FEF3C7] text-[#B45309]",
-  Completed: "bg-[#DCFCE7] text-[#16A34A]",
-} as const;
 
 export function MyPlanTaskRow({
   task,
@@ -22,8 +15,6 @@ export function MyPlanTaskRow({
   onToggleActive: () => void;
   onDelete: () => void;
 }) {
-  const status = getMyPlanStatus(task.active, task.done);
-
   return (
     <li className="flex items-center gap-4 border-b border-[#E5E9F0] px-6 py-4 last:border-b-0 hover:bg-[#F9FAFB]">
       <Checkbox
@@ -54,20 +45,22 @@ export function MyPlanTaskRow({
         </div>
       </div>
 
-      <span
-        className={cn(
-          "shrink-0 rounded-md px-2 py-1 text-xs font-semibold",
-          STATUS_STYLES[status]
+      {/* Single status badge — Complete > In Progress > Incomplete, never more than one shown */}
+      <div className="shrink-0">
+        {task.done ? (
+          <span className="rounded-md bg-[#DCFCE7] px-2 py-1 text-xs font-semibold text-[#16A34A]">Complete</span>
+        ) : task.active ? (
+          <span className="rounded-md bg-[#FEF3C7] px-2 py-1 text-xs font-semibold text-[#B45309]">In Progress</span>
+        ) : (
+          <span className="rounded-md bg-[#F1F2F5] px-2 py-1 text-xs font-semibold text-[#5B6472]">Incomplete</span>
         )}
-      >
-        {status}
-      </span>
+      </div>
 
       <div className="flex shrink-0 items-center gap-4">
         <Switch
           checked={task.active}
           onCheckedChange={onToggleActive}
-          aria-label="Toggle active"
+          aria-label="Toggle in progress"
         />
         <button
           className="text-[#9AA3B2] hover:text-[#16233F]"
