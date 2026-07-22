@@ -1,10 +1,11 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { ClipboardCheck, Eye, Filter } from "lucide-react";
 import { WeekSelector } from "@/components/ui/week-selector";
-import { TEAMS, TEAM_DRILLDOWNS } from "@/lib/mock-data";
+import { TEAMS } from "@/lib/mock-data";
+import type { TeamDrilldownStats } from "@/lib/types";
 
 function getMonday(d: Date) {
   const date = new Date(d);
@@ -15,6 +16,10 @@ function getMonday(d: Date) {
   return date;
 }
 
+function toDateParam(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
 export default function TeamDrilldownPage({
   params,
 }: {
@@ -22,18 +27,58 @@ export default function TeamDrilldownPage({
 }) {
   const { team } = use(params);
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
+  const [stats, setStats] = useState<TeamDrilldownStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const selectedTeam = TEAMS.find((t) => t.id === team);
-  const stats = TEAM_DRILLDOWNS[team];
 
-  if (!selectedTeam || !stats) {
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/dashboard/${team}?week=${toDateParam(selectedWeek)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const completed = data.tasks.filter((t: any) => t.status === "COMPLETE").length;
+        const incomplete = data.tasks.length - completed;
+
+        setStats({
+          teamId: data.teamId,
+          totalTasks: data.tasks.length,
+          completed,
+          incomplete,
+          currentlyActive: data.tasks.filter((t: any) => t.isActivated).length,
+          completedTrendLabel: "",
+          performanceIndex: data.overall,
+          initiatives: data.tasks.map((t: any) => ({
+            id: t.taskId,
+            title: t.description,
+            subtitle: t.category,
+            ownerInitials: "—",
+            ownerName: "—",
+            frequency: t.frequency ?? "Weekly",
+            kpi: t.kpiReference ?? "—",
+            active: t.isActivated ?? false,
+            completed: t.status === "COMPLETE",
+          })),
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [team, selectedWeek]);
+
+  if (!selectedTeam) {
     notFound();
   }
 
-  // TODO once connected to a real API: refetch `stats` for `selectedWeek` here.
-  // Mock data below doesn't change with the week yet.
+  if (loading || !stats) {
+    return (
+      <main className="flex-1 px-8 py-8">
+        <p className="text-sm text-[#5B6472]">Loading…</p>
+      </main>
+    );
+  }
 
-  const activePct = Math.round((stats.currentlyActive / stats.totalTasks) * 100);
+  const activePct = stats.totalTasks > 0
+    ? Math.round((stats.currentlyActive / stats.totalTasks) * 100)
+    : 0;
 
   return (
     <main className="flex-1 px-8 py-8">
@@ -136,7 +181,6 @@ export default function TeamDrilldownPage({
               </div>
               <span className="text-sm text-[#5B6472]">{item.frequency}</span>
               <span className="text-sm text-[#5B6472]">{item.kpi}</span>
-              {/* Single status badge — Complete > In Progress > Incomplete, never more than one shown */}
               <div className="md:text-right">
                 {item.completed ? (
                   <span className="inline-block rounded-md bg-[#DCFCE7] px-2 py-1 text-xs font-semibold text-[#16A34A]">

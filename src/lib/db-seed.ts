@@ -6,7 +6,7 @@ export async function seedDatabaseIfEmpty() {
 
   console.log("Seeding database with initial teams, users, memberships, and tasks...");
 
-  // 1. Create Teams
+  // 1. Teams
   const teams = [
     { id: "bu01", teamName: "BU01 · North America Retail", description: "NA Retail business unit" },
     { id: "bu02", teamName: "BU02 · EMEA Wholesale", description: "EMEA Wholesale business unit" },
@@ -19,10 +19,13 @@ export async function seedDatabaseIfEmpty() {
     await prisma.team.create({ data: t });
   }
 
-  // 2. Create Users
+  // 2. Users — microsoftId is a placeholder here since real Entra ID login
+  // is still stubbed (lib/session.ts). These are fake but unique IDs so the
+  // seed can run standalone; they get replaced by real Microsoft account IDs
+  // once real auth is wired in.
   const userTeam = await prisma.user.create({
     data: {
-      username: "engineering-lead",
+      microsoftId: "seed-engineering-lead",
       name: "Engineering Lead",
       role: "TEAM",
     },
@@ -30,7 +33,7 @@ export async function seedDatabaseIfEmpty() {
 
   const userAdmin = await prisma.user.create({
     data: {
-      username: "hr-manager",
+      microsoftId: "seed-hr-manager",
       name: "HR Manager",
       role: "ADMIN",
     },
@@ -38,93 +41,89 @@ export async function seedDatabaseIfEmpty() {
 
   const userCeo = await prisma.user.create({
     data: {
-      username: "ceo-office",
+      microsoftId: "seed-ceo-office",
       name: "CEO",
       role: "CEO",
     },
   });
 
-  // 3. Create Memberships
-  await prisma.membership.create({
-    data: {
-      userId: userTeam.id,
-      teamId: "engineering",
-    },
-  });
+  // 3. Memberships — every team needs at least one TEAM-role member so a
+  // non-admin user can be tested against each team's data, not just the
+  // two that happened to have one before.
+  await prisma.membership.create({ data: { userId: userTeam.id, teamId: "engineering" } });
+  await prisma.membership.create({ data: { userId: userAdmin.id, teamId: "hr-admin" } });
+  // ADMIN and CEO roles bypass per-team Membership checks via canAccessTeam(),
+  // so they don't strictly need rows here — but HR/CEO also having a "home"
+  // team membership matches how HR was scoped earlier (dual: admin + own team).
 
-  await prisma.membership.create({
-    data: {
-      userId: userAdmin.id,
-      teamId: "hr-admin",
-    },
-  });
-
-  // 4. Create Standard Tasks
-  const dateStr = new Date();
-  dateStr.setDate(dateStr.getDate() - dateStr.getDay() + 1); // Current week Monday
-  dateStr.setHours(0, 0, 0, 0);
+  // 4. Standard Tasks — category and frequency now match the schema's actual
+  // enums exactly, no `as any` casts hiding mismatches.
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday of current week
+  weekStart.setHours(0, 0, 0, 0);
 
   const tasksData = [
     {
       teamId: "bu01",
       createdById: userAdmin.id,
-      category: "FINANCE",
+      category: "FINANCE" as const,
       description: "Reconcile weekly cash position",
       kpiReference: "Ledger Accuracy %",
-      frequency: "WEEKLY",
+      frequency: "WEEKLY" as const,
     },
     {
       teamId: "bu01",
       createdById: userAdmin.id,
-      category: "CUSTOMER",
+      category: "CUSTOMER" as const,
       description: "Review top-10 customer health scores",
       kpiReference: "NPS",
-      frequency: "WEEKLY",
+      frequency: "WEEKLY" as const,
     },
     {
       teamId: "engineering",
       createdById: userTeam.id,
-      category: "PROCESS_TECH",
+      category: "PROCESS_TECH" as const,
       description: "Deploy weekly staging build",
       kpiReference: "Uptime %",
-      frequency: "WEEKLY",
+      frequency: "WEEKLY" as const,
     },
     {
       teamId: "engineering",
       createdById: userTeam.id,
-      category: "PEOPLE",
+      category: "PEOPLE" as const,
       description: "Conduct 1-on-1 development reviews",
       kpiReference: "Retention Rate",
-      frequency: "WEEKLY",
+      frequency: "WEEKLY" as const,
     },
     {
       teamId: "hr-admin",
       createdById: userAdmin.id,
-      category: "PEOPLE",
+      category: "PEOPLE" as const,
       description: "Verify team timesheet submissions",
       kpiReference: "Payroll Compliance %",
-      frequency: "WEEKLY",
+      frequency: "WEEKLY" as const,
     },
   ];
 
   for (const task of tasksData) {
-    const t = await prisma.task.create({
+    const created = await prisma.task.create({
       data: {
         teamId: task.teamId,
         createdById: task.createdById,
-        category: task.category as any,
+        category: task.category,
         description: task.description,
         kpiReference: task.kpiReference,
-        frequency: task.frequency as any,
+        frequency: task.frequency,
+        source: "STANDARD",
       },
     });
 
-    // Create an instance for the current week
     await prisma.taskInstance.create({
       data: {
-        taskId: t.id,
-        weekStartDate: dateStr,
+        taskId: created.id,
+        weekStartDate: weekStart,
         status: "INCOMPLETE",
+        isActivated: false,
       },
     });
   }

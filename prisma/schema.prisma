@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 //  Enums
@@ -39,13 +40,13 @@ enum Status {
   COMPLETE
 }
 
-//  Models 
+//  Models
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  username  String   @unique
-  role      Role     @default(TEAM)
+  id          String   @id @default(cuid())
+  name        String
+  microsoftId String   @unique
+  role        Role     @default(TEAM)
 
   memberships    Membership[]
   createdTasks   Task[]         @relation("TaskCreator")
@@ -110,6 +111,7 @@ model TaskInstance {
   task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   weekStartDate   DateTime  @db.Date
+  isActivated     Boolean   @default(false)
   status          Status    @default(INCOMPLETE)
   completedAt     DateTime?
   completedById   String?
