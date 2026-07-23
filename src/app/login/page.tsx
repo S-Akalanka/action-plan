@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 const DEMO_ACCOUNTS = [
-  { label: "Engineering Lead", username: "seed-engineering-lead" },
-  { label: "HR Manager (Admin)", username: "seed-hr-manager" },
   { label: "CEO", username: "seed-ceo-office" },
+  { label: "HR Manager (Admin)", username: "seed-hr-manager" },
+  { label: "Engineering Lead — in Engineering + BU01", username: "seed-engineering-lead" },
+  { label: "BU01 Lead — in BU02", username: "seed-bu01-lead" },
 ];
 
 export default function LoginPage() {

@@ -1,14 +1,16 @@
 import "./globals.css";
 import { TeamProvider } from "@/lib/team-context";
-import { SiteHeader } from "@/components/site-header";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteFooter } from "@/components/site-footer";
 
 export const metadata = {
-  title: "Team Management System",
+  title: "Acentura Action Plan",
   description: "Manage tasks and team progress",
 };
 
+/**
+ * Root layout only provides global styles + TeamProvider context.
+ * Header/Sidebar/Footer chrome moved to (app)/layout.tsx, which wraps
+ * every route EXCEPT /login — so the login page renders with no nav at all.
+ */
 export default function RootLayout({
   children,
 }: {
@@ -17,16 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#F5F6F8] text-[#16233F]">
-        <TeamProvider>
-          <div className="flex min-h-screen flex-col">
-            <SiteHeader />
-            <div className="mx-auto flex w-full max-w-[1400px] flex-1">
-              <AppSidebar />
-              <main className="flex-1 min-w-0">{children}</main>
-            </div>
-            <SiteFooter />
-          </div>
-        </TeamProvider>
+        <TeamProvider>{children}</TeamProvider>
       </body>
     </html>
   );

@@ -6,38 +6,41 @@ import { Button } from "@/components/ui/button";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
-import { CATEGORIES, TEAMS } from "@/lib/mock-data";
+import { CATEGORIES } from "@/lib/mock-data";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
+
+const CATEGORY_MAP: Record<string, CategoryKey> = {
+  FINANCE: "Finance",
+  CUSTOMER: "Customer",
+  PROCESS_TECH: "Process/Tech",
+  PEOPLE: "People",
+};
 
 export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const { selectedTeamId } = useTeam();
+  const { myTeams, selectedTeamId } = useTeam();
 
-  const selectedTeam = selectedTeamId
-    ? TEAMS.find((t) => t.id === selectedTeamId) ?? null
-    : null;
+  const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
 
-useEffect(() => {
-  const teamId = selectedTeamId ?? TEAMS[0].id;
-  console.log("Fetching for teamId:", teamId); // ADD THIS
+  useEffect(() => {
+    if (!selectedTeamId) return;
 
-  Promise.all([
-    fetch(`/api/teams/${teamId}/tasks`).then((res) => res.json()),
-    fetch(`/api/teams/${teamId}/instances`).then((res) => res.json()),
-  ])
-    .then(([tasksData, instancesData]) => {
-      console.log("tasksData:", tasksData); // ADD THIS
-      console.log("instancesData:", instancesData); // ADD THIS
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
+      fetch(`/api/teams/${selectedTeamId}/instances`).then((res) => res.json()),
+    ])
+      .then(([tasksData, instancesData]) => {
         const merged: MyPlanTask[] = tasksData.map((task: any) => {
           const instance = instancesData.find((i: any) => i.taskId === task.id);
           return {
             id: task.id,
             teamId: task.teamId,
             desc: task.description,
-            category: task.category,
+            category: CATEGORY_MAP[task.category] ?? task.category,
             kpi: task.kpiReference ?? "",
             frequency: task.frequency,
             done: instance?.status === "COMPLETE",
@@ -50,23 +53,15 @@ useEffect(() => {
       .finally(() => setLoading(false));
   }, [selectedTeamId]);
 
-  const teamTasks = useMemo(
-    () =>
-      selectedTeamId
-        ? tasks.filter((t) => t.teamId === selectedTeamId)
-        : tasks,
-    [tasks, selectedTeamId]
-  );
-
   const overallPercent = useMemo(() => {
-    if (teamTasks.length === 0) return 0;
-    return Math.round((teamTasks.filter((t) => t.done).length / teamTasks.length) * 100);
-  }, [teamTasks]);
+    if (tasks.length === 0) return 0;
+    return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100);
+  }, [tasks]);
 
   const categoryStats = useMemo(
     () =>
       CATEGORIES.map((cat) => {
-        const catTasks = teamTasks.filter((t) => t.category === cat.key);
+        const catTasks = tasks.filter((t) => t.category === cat.key);
         return {
           key: cat.key,
           icon: cat.icon,
@@ -74,19 +69,15 @@ useEffect(() => {
           total: catTasks.length,
         };
       }),
-    [teamTasks]
+    [tasks]
   );
 
-  // Toggle now calls the real PATCH endpoint. UI updates optimistically,
-  // then reconciles with whatever the server actually saved.
   const toggle = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nextDone = !task.done;
 
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t)));
 
     fetch(`/api/instances/${id}`, {
       method: "PATCH",
@@ -110,9 +101,7 @@ useEffect(() => {
     if (!task) return;
     const nextActive = !task.active;
 
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t)));
 
     fetch(`/api/instances/${id}`, {
       method: "PATCH",
@@ -127,9 +116,9 @@ useEffect(() => {
   };
 
   const addTask = (data: { desc: string; category: CategoryKey; kpi: string }) => {
-    const teamId = selectedTeamId ?? TEAMS[0].id;
+    if (!selectedTeamId) return;
 
-    fetch(`/api/teams/${teamId}/tasks`, {
+    fetch(`/api/teams/${selectedTeamId}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -146,7 +135,7 @@ useEffect(() => {
           ...prev,
           {
             id: created.taskId,
-            teamId,
+            teamId: selectedTeamId,
             desc: data.desc,
             category: data.category,
             kpi: data.kpi,
@@ -168,13 +157,21 @@ useEffect(() => {
     );
   }
 
+  if (!selectedTeamId) {
+    return (
+      <main className="flex-1 px-8 py-8">
+        <p className="text-sm text-[#5B6472]">You are not a member of any team.</p>
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 px-8 py-8">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">My Action Plan</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Week 42 · {selectedTeam ? selectedTeam.label : "All Business Units"}
+            Week 42 · {selectedTeam ? selectedTeam.teamName : ""}
           </p>
         </div>
         <Button
@@ -202,7 +199,7 @@ useEffect(() => {
             key={cat.key}
             icon={cat.icon}
             label={cat.key}
-            tasks={teamTasks.filter((t) => t.category === cat.key)}
+            tasks={tasks.filter((t) => t.category === cat.key)}
             onToggle={toggle}
             onToggleActive={toggleActive}
             onDelete={deleteTask}
@@ -210,9 +207,9 @@ useEffect(() => {
         ))}
       </div>
 
-      {teamTasks.length === 0 && (
+      {tasks.length === 0 && (
         <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
-          No tasks tracked{selectedTeam ? ` for ${selectedTeam.label}` : ""} yet.
+          No tasks tracked{selectedTeam ? ` for ${selectedTeam.teamName}` : ""} yet.
         </div>
       )}
     </main>
