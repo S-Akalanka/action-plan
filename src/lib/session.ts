@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { getServerSession } from "next-auth/next";
+import { seedDatabaseIfEmpty } from "../lib/db-seed";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,20 +16,23 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.username) return null;
 
+        // Auto-seed database if empty
+        await seedDatabaseIfEmpty();
+
         const username = credentials.username.trim();
         const roleInput = (credentials.role || "").toUpperCase();
         const role = ["TEAM", "ADMIN", "CEO"].includes(roleInput) ? (roleInput as "TEAM" | "ADMIN" | "CEO") : "TEAM";
 
-        // Find user by username
+        // Find user by username (mapped to microsoftId in db schema)
         let user = await prisma.user.findUnique({
-          where: { username },
+          where: { microsoftId: username },
         });
 
         // Auto-create user if they don't exist yet for seamless manual usage
         if (!user) {
           user = await prisma.user.create({
             data: {
-              username,
+              microsoftId: username,
               name: credentials.name?.trim() || username,
               role,
             },
@@ -39,7 +43,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name,
           role: user.role,
-          username: user.username,
+          username: user.microsoftId,
         } as any;
       },
     }),

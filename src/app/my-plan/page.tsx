@@ -1,23 +1,54 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
-import { CATEGORIES, MY_PLAN_TASKS, TEAMS } from "@/lib/mock-data";
+import { CATEGORIES, TEAMS } from "@/lib/mock-data";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 
 export default function MyPlanPage() {
-  const [tasks, setTasks] = useState<MyPlanTask[]>(MY_PLAN_TASKS);
+  const [tasks, setTasks] = useState<MyPlanTask[]>([]);
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const { selectedTeamId } = useTeam();
 
   const selectedTeam = selectedTeamId
     ? TEAMS.find((t) => t.id === selectedTeamId) ?? null
     : null;
+
+useEffect(() => {
+  const teamId = selectedTeamId ?? TEAMS[0].id;
+  console.log("Fetching for teamId:", teamId); // ADD THIS
+
+  Promise.all([
+    fetch(`/api/teams/${teamId}/tasks`).then((res) => res.json()),
+    fetch(`/api/teams/${teamId}/instances`).then((res) => res.json()),
+  ])
+    .then(([tasksData, instancesData]) => {
+      console.log("tasksData:", tasksData); // ADD THIS
+      console.log("instancesData:", instancesData); // ADD THIS
+        const merged: MyPlanTask[] = tasksData.map((task: any) => {
+          const instance = instancesData.find((i: any) => i.taskId === task.id);
+          return {
+            id: task.id,
+            teamId: task.teamId,
+            desc: task.description,
+            category: task.category,
+            kpi: task.kpiReference ?? "",
+            frequency: task.frequency,
+            done: instance?.status === "COMPLETE",
+            active: instance?.isActivated ?? false,
+            completedAt: instance?.completedAt ?? undefined,
+          };
+        });
+        setTasks(merged);
+      })
+      .finally(() => setLoading(false));
+  }, [selectedTeamId]);
 
   const teamTasks = useMemo(
     () =>
@@ -46,63 +77,96 @@ export default function MyPlanPage() {
     [teamTasks]
   );
 
-  const toggle = (id: string) =>
+  // Toggle now calls the real PATCH endpoint. UI updates optimistically,
+  // then reconciles with whatever the server actually saved.
+  const toggle = (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const nextDone = !task.done;
+
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              done: !t.done,
-              active: !t.done ? true : t.active,
-              completedAt: !t.done
-                ? new Date().toLocaleDateString("en-US", { weekday: "short" }) +
-                  " " +
-                  new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })
-                : undefined,
-            }
-          : t
-      )
+      prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t))
     );
 
-  const deleteTask = (id: string) =>
+    fetch(`/api/instances/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextDone ? "COMPLETE" : "INCOMPLETE" }),
+    })
+      .then((res) => res.json())
+      .then((updated) => {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, done: updated.status === "COMPLETE", completedAt: updated.completedAt }
+              : t
+          )
+        );
+      });
+  };
+
+  const toggleActive = (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const nextActive = !task.active;
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t))
+    );
+
+    fetch(`/api/instances/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActivated: nextActive }),
+    });
+  };
+
+  const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-
-  const toggleActive = (id: string) =>
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const nextActive = !t.active;
-          return {
-            ...t,
-            active: nextActive,
-            done: nextActive ? t.done : false,
-            completedAt: nextActive ? t.completedAt : undefined,
-          };
-        }
-        return t;
-      })
-    );
+    fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  };
 
   const addTask = (data: { desc: string; category: CategoryKey; kpi: string }) => {
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: `m${Date.now()}`,
-        teamId: selectedTeamId ?? TEAMS[0].id,
-        desc: data.desc,
+    const teamId = selectedTeamId ?? TEAMS[0].id;
+
+    fetch(`/api/teams/${teamId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         category: data.category,
-        kpi: data.kpi,
-        frequency: "Ad-hoc",
-        done: false,
-        active: false,
-      },
-    ]);
+        description: data.desc,
+        kpiReference: data.kpi || null,
+        frequency: "WEEKLY",
+        source: "ADHOC",
+      }),
+    })
+      .then((res) => res.json())
+      .then((created) => {
+        setTasks((prev) => [
+          ...prev,
+          {
+            id: created.taskId,
+            teamId,
+            desc: data.desc,
+            category: data.category,
+            kpi: data.kpi,
+            frequency: "Ad-hoc",
+            done: false,
+            active: false,
+          },
+        ]);
+      });
+
     setAdding(false);
   };
+
+  if (loading) {
+    return (
+      <main className="flex-1 px-8 py-8">
+        <p className="text-sm text-[#5B6472]">Loading…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 px-8 py-8">
@@ -128,10 +192,7 @@ export default function MyPlanPage() {
 
       {adding && (
         <div className="mb-8">
-          <AddAdHocTaskForm
-            onSave={addTask}
-            onCancel={() => setAdding(false)}
-          />
+          <AddAdHocTaskForm onSave={addTask} onCancel={() => setAdding(false)} />
         </div>
       )}
 

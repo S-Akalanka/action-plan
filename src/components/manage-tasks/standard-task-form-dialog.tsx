@@ -70,6 +70,7 @@ export function StandardTaskFormDialog({
         category: form.category,
         kpi: form.kpi.trim() || "—",
         frequency: form.frequency,
+        isActive: initialTask ? initialTask.isActive : true,
       },
       initialTask?.id
     );

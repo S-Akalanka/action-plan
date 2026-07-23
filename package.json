@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "seed": "tsx src/lib/db-seed.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -32,6 +33,7 @@
     "eslint-config-next": "16.2.10",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }

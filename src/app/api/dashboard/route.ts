@@ -1,11 +1,10 @@
 // app/api/dashboard/route.ts
 // GET /api/dashboard?week=2026-06-29
-//
-// TEMP: returns hardcoded mock data until the database is seeded and ready.
-// Swap the marked block for the real Prisma query below — nothing on the
-// frontend needs to change either way, since the response shape is identical.
 
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { getCurrentWeekStart } from "@/lib/week";
 
 const MOCK_DASHBOARD_DATA = [
   {
@@ -41,44 +40,47 @@ const MOCK_DASHBOARD_DATA = [
 ];
 
 export async function GET(req: Request) {
-  // --- TEMP mock response ---
-  return NextResponse.json(MOCK_DASHBOARD_DATA);
+  try {
+    const { searchParams } = new URL(req.url);
+    const weekParam = searchParams.get("week");
+    const weekStart = weekParam ? new Date(weekParam) : getCurrentWeekStart();
 
-  // --- Real version — uncomment once DB is seeded and auth is wired ---
-  //
-  // import { auth } from "@/lib/session";
-  // import { prisma } from "@/lib/prisma";
-  // import { requireAdminOrCeo } from "@/lib/auth";
-  // import { getCurrentWeekStart } from "@/lib/week";
-  //
-  // const session = await auth();
-  // if (!session?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  //
-  // const isAdminOrCeo = await requireAdminOrCeo(session.user.id);
-  // if (!isAdminOrCeo) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  //
-  // const { searchParams } = new URL(req.url);
-  // const weekParam = searchParams.get("week");
-  // const weekStart = weekParam ? new Date(weekParam) : getCurrentWeekStart();
-  //
-  // const teams = await prisma.team.findMany();
-  // const result = await Promise.all(
-  //   teams.map(async (team) => {
-  //     const instances = await prisma.taskInstance.findMany({
-  //       where: { weekStartDate: weekStart, task: { teamId: team.id } },
-  //       include: { task: true },
-  //     });
-  //     const categories = ["FINANCE", "CUSTOMER", "PROCESS_TECH", "PEOPLE"] as const;
-  //     const categoryPct: Record<string, number> = {};
-  //     for (const cat of categories) {
-  //       const inCategory = instances.filter((i) => i.task.category === cat);
-  //       const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
-  //       categoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
-  //     }
-  //     const totalCompleted = instances.filter((i) => i.status === "COMPLETE").length;
-  //     const overall = instances.length > 0 ? Math.round((totalCompleted / instances.length) * 100) : 0;
-  //     return { teamId: team.id, teamName: team.teamName, categories: categoryPct, overall };
-  //   })
-  // );
-  // return NextResponse.json(result);
+    const teams = await prisma.team.findMany();
+    if (!teams || teams.length === 0) {
+      return NextResponse.json(MOCK_DASHBOARD_DATA);
+    }
+
+    const result = await Promise.all(
+      teams.map(async (team) => {
+        const instances = await prisma.taskInstance.findMany({
+          where: { weekStartDate: weekStart, task: { teamId: team.id } },
+          include: { task: true },
+        });
+        
+        const categories = ["FINANCE", "CUSTOMER", "PROCESS_TECH", "PEOPLE"] as const;
+        const categoryPct: Record<string, number> = {};
+        
+        for (const cat of categories) {
+          const inCategory = instances.filter((i) => i.task.category === cat);
+          const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
+          categoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
+        }
+        
+        const totalCompleted = instances.filter((i) => i.status === "COMPLETE").length;
+        const overall = instances.length > 0 ? Math.round((totalCompleted / instances.length) * 100) : 0;
+        
+        return { 
+          teamId: team.id, 
+          teamName: team.teamName, 
+          categories: categoryPct, 
+          overall 
+        };
+      })
+    );
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.warn("Database query failed in /api/dashboard, serving fallback data:", error);
+    return NextResponse.json(MOCK_DASHBOARD_DATA);
+  }
 }

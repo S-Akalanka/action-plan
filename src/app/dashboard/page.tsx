@@ -28,18 +28,31 @@ export default function ExecutiveSummaryPage() {
   useEffect(() => {
     setLoading(true);
     fetch(`/api/dashboard?week=${toDateParam(selectedWeek)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) return res.json().then((err) => Promise.reject(err));
+        return res.json();
+      })
       .then((data) => {
+        if (!Array.isArray(data)) {
+          console.error("Unexpected /api/dashboard response:", data);
+          setTeamSummaries([]);
+          return;
+        }
+
         const mapped: ExecutiveTeamSummary[] = data.map((d: any) => ({
           teamId: d.teamId,
           overall: d.overall,
           status: d.overall >= 80 ? "On Track" : d.overall >= 50 ? "Needs Attention" : "Pending",
           metrics: Object.entries(d.categories).map(([category, percent]) => ({
-            category,
-            percent,
+            category: category as CategoryKey,
+            percent: percent as number,
           })),
         }));
         setTeamSummaries(mapped);
+      })
+      .catch((err) => {
+        console.error("Failed to load dashboard:", err);
+        setTeamSummaries([]);
       })
       .finally(() => setLoading(false));
   }, [selectedWeek]);
