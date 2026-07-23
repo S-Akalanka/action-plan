@@ -1,13 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/my-plan", label: "Action Plans" },
-  { href: "/manage-tasks", label: "Manage Tasks" },
+type Role = "TEAM" | "ADMIN" | "CEO";
+
+const ALL_NAV_LINKS = [
+  { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "CEO"] as Role[] },
+  { href: "/my-plan", label: "My Action Plan", roles: ["TEAM", "ADMIN", "CEO"] as Role[] },
+  { href: "/manage-tasks", label: "Manage Tasks", roles: ["ADMIN", "CEO"] as Role[] },
 ];
 
 export function SiteHeader({
@@ -16,6 +20,27 @@ export function SiteHeader({
   rightControl?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [role, setRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    fetch("/api/users/current")
+      .then((res) => {
+        if (!res.ok) throw new Error("Not signed in");
+        return res.json();
+      })
+      .then((user) => setRole(user.role))
+      .catch(() => setRole(null));
+  }, []);
+
+  const visibleLinks = role
+    ? ALL_NAV_LINKS.filter((link) => link.roles.includes(role))
+    : [];
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
+    router.push("/login");
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-[#E5E9F0] bg-white px-6">
@@ -24,7 +49,7 @@ export function SiteHeader({
           Acentura
         </Link>
         <nav className="flex items-center gap-8 text-sm font-medium text-[#5B6472]">
-          {NAV_LINKS.map((link) => {
+          {visibleLinks.map((link) => {
             const active = pathname === link.href;
             return (
               <Link
@@ -32,9 +57,7 @@ export function SiteHeader({
                 href={link.href}
                 className={cn(
                   "border-b-2 border-transparent pb-5 pt-5 transition-colors",
-                  active
-                    ? "border-[#16233F] text-[#16233F]"
-                    : "hover:text-[#16233F]"
+                  active ? "border-[#16233F] text-[#16233F]" : "hover:text-[#16233F]"
                 )}
               >
                 {link.label}
@@ -46,7 +69,10 @@ export function SiteHeader({
 
       <div className="flex items-center gap-6">
         {rightControl}
-        <button className="text-sm font-medium text-[#5B6472] hover:text-[#16233F]">
+        <button
+          onClick={handleLogout}
+          className="text-sm font-medium text-[#5B6472] hover:text-[#16233F]"
+        >
           Logout
         </button>
         <div className="h-9 w-9 overflow-hidden rounded-full bg-[#D9DEE6]">

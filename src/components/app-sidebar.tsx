@@ -2,31 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid } from "lucide-react";
-import { TEAMS } from "@/lib/mock-data";
+import { LayoutGrid, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTeam } from "@/lib/team-context";
 
 /**
  * Unified sidebar shown on all pages except the main dashboard (/).
- *
- * Behaviour by section:
- * - /dashboard  → URL navigation: Overview = /dashboard,
- *                         team = /dashboard/[teamId]
- * - /my-plan            → Context: Overview clears selectedTeamId (shows all tasks),
- *                         team sets selectedTeamId
- * - /manage-tasks          → Context: same pattern as my-plan
+ * Renders the SIGNED-IN USER'S actual teams (via useTeam's myTeams),
+ * not a global mock list — a TEAM-role user only sees teams they belong
+ * to; ADMIN/CEO see all teams (handled server-side by the teams API).
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { selectedTeamId, setSelectedTeamId } = useTeam();
+  const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();
 
-  // No sidebar on the main dashboard
   if (pathname === "/") return null;
 
   const isExecSummary = pathname.startsWith("/dashboard");
 
-  // For exec-summary the active state is driven by the URL
   const overviewActive = isExecSummary
     ? pathname === "/dashboard"
     : !selectedTeamId;
@@ -47,15 +40,12 @@ export function AppSidebar() {
         </div>
 
         <nav className="space-y-1">
-          {/* ── Overview ── */}
           {isExecSummary ? (
             <Link
               href="/dashboard"
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                overviewActive
-                  ? "bg-[#DCEBFC] text-[#16233F]"
-                  : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                overviewActive ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
               )}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -66,9 +56,7 @@ export function AppSidebar() {
               onClick={() => setSelectedTeamId(null)}
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                overviewActive
-                  ? "bg-[#DCEBFC] text-[#16233F]"
-                  : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                overviewActive ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
               )}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -76,44 +64,42 @@ export function AppSidebar() {
             </button>
           )}
 
-          {/* ── Teams ── */}
-          {TEAMS.map((team) => {
-            const Icon = team.icon;
-            const href = `/dashboard/${team.id}`;
-            const active = isExecSummary
-              ? pathname === href
-              : selectedTeamId === team.id;
+          {loadingTeams ? (
+            <p className="px-3 py-2 text-xs text-[#9AA3B2]">Loading teams…</p>
+          ) : (
+            myTeams.map((team) => {
+              const href = `/dashboard/${team.id}`;
+              const active = isExecSummary
+                ? pathname === href
+                : selectedTeamId === team.id;
 
-            return isExecSummary ? (
-              <Link
-                key={team.id}
-                href={href}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-[#DCEBFC] text-[#16233F]"
-                    : "text-[#5B6472] hover:bg-[#F5F6F8]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {team.label}
-              </Link>
-            ) : (
-              <button
-                key={team.id}
-                onClick={() => setSelectedTeamId(team.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                  active
-                    ? "bg-[#DCEBFC] text-[#16233F]"
-                    : "text-[#5B6472] hover:bg-[#F5F6F8]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {team.label}
-              </button>
-            );
-          })}
+              return isExecSummary ? (
+                <Link
+                  key={team.id}
+                  href={href}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    active ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                  )}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {team.teamName}
+                </Link>
+              ) : (
+                <button
+                  key={team.id}
+                  onClick={() => setSelectedTeamId(team.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    active ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                  )}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {team.teamName}
+                </button>
+              );
+            })
+          )}
         </nav>
       </div>
     </aside>

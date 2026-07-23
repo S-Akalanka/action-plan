@@ -1,16 +1,14 @@
 "use client";
 
-import { Plus, LayoutGrid } from "lucide-react";
-import { TEAMS } from "@/lib/mock-data";
+import { Plus, LayoutGrid, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTeam } from "@/lib/team-context";
 import { usePathname } from "next/navigation";
 
 export function TeamSidebar() {
-  const { selectedTeamId, setSelectedTeamId } = useTeam();
+  const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();
   const pathname = usePathname();
 
-  // No sidebar on the main dashboard or dashboard (which has its own)
   if (pathname === "/" || pathname.startsWith("/dashboard")) return null;
 
   return (
@@ -29,25 +27,26 @@ export function TeamSidebar() {
         </div>
 
         <nav className="space-y-1">
-          {TEAMS.map((team) => {
-            const Icon = team.icon;
-            const active = selectedTeamId === team.id;
-            return (
-              <button
-                key={team.id}
-                onClick={() => setSelectedTeamId(team.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                  active
-                    ? "bg-[#DCEBFC] text-[#16233F]"
-                    : "text-[#5B6472] hover:bg-[#F5F6F8]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {team.label}
-              </button>
-            );
-          })}
+          {loadingTeams ? (
+            <p className="px-3 py-2 text-xs text-[#9AA3B2]">Loading teams…</p>
+          ) : (
+            myTeams.map((team) => {
+              const active = selectedTeamId === team.id;
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => setSelectedTeamId(team.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    active ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                  )}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {team.teamName}
+                </button>
+              );
+            })
+          )}
         </nav>
       </div>
 

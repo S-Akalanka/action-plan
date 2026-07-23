@@ -1,9 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
-import { TEAMS } from "./mock-data";
+import React, { createContext, useContext, useEffect, useState } from "react";
+
+interface MyTeam {
+  id: string;
+  teamName: string;
+}
 
 interface TeamContextType {
+  myTeams: MyTeam[];
+  loadingTeams: boolean;
   selectedTeamId: string | null;
   setSelectedTeamId: (id: string | null) => void;
   activeWeek: number;
@@ -13,11 +19,33 @@ interface TeamContextType {
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(TEAMS[0].id);
+  const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState<number>(42);
 
+  useEffect(() => {
+    fetch("/api/users/current/teams")
+      .then((res) => {
+        if (!res.ok) throw new Error("Not signed in");
+        return res.json();
+      })
+      .then((teams: MyTeam[]) => {
+        setMyTeams(teams);
+        // Default to this user's first real team, not a hardcoded mock team.
+        if (teams.length > 0) setSelectedTeamId(teams[0].id);
+      })
+      .catch(() => {
+        setMyTeams([]);
+        setSelectedTeamId(null);
+      })
+      .finally(() => setLoadingTeams(false));
+  }, []);
+
   return (
-    <TeamContext.Provider value={{ selectedTeamId, setSelectedTeamId, activeWeek, setActiveWeek }}>
+    <TeamContext.Provider
+      value={{ myTeams, loadingTeams, selectedTeamId, setSelectedTeamId, activeWeek, setActiveWeek }}
+    >
       {children}
     </TeamContext.Provider>
   );
