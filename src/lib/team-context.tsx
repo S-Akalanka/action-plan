@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+import { useSession } from "next-auth/react";
+
 interface MyTeam {
   id: string;
   teamName: string;
@@ -24,6 +26,8 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState<number>(42);
 
+  const { data: session, status } = useSession();
+
   useEffect(() => {
     fetch("/api/users/current/teams")
       .then((res) => {
@@ -39,7 +43,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
         setSelectedTeamId(null);
       })
       .finally(() => setLoadingTeams(false));
-  }, []);
+  }, [session?.user?.id]);
 
   return (
     <TeamContext.Provider

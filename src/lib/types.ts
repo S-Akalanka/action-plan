@@ -200,7 +200,7 @@ export interface LedgerTask {
 export interface Team {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
 }
 
 export interface MyPlanTask {

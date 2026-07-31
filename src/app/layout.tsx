@@ -1,5 +1,5 @@
 import "./globals.css";
-import { TeamProvider } from "@/lib/team-context";
+import { Providers } from "./providers";
 
 export const metadata = {
   title: "Acentura Action Plan",
@@ -14,7 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#F5F6F8] text-[#16233F]">
-        <TeamProvider>{children}</TeamProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

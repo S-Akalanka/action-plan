@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "seed": "tsx src/lib/db-seed.ts",
+    "seed": "tsx src/lib/seed-runner.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

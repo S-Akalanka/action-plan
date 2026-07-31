@@ -87,7 +87,7 @@ export function StandardTaskFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg bg-gray-100">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Standard Task" : "Add Standard Task"}</DialogTitle>
         </DialogHeader>
