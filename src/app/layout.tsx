@@ -6,11 +6,6 @@ export const metadata = {
   description: "Manage tasks and team progress",
 };
 
-/**
- * Root layout only provides global styles + TeamProvider context.
- * Header/Sidebar/Footer chrome moved to (app)/layout.tsx, which wraps
- * every route EXCEPT /login — so the login page renders with no nav at all.
- */
 export default function RootLayout({
   children,
 }: {

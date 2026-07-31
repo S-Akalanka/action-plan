@@ -26,14 +26,29 @@ export default function LoginPage() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (result?.error) {
+      setLoading(false);
       setError("Sign in failed. Try again.");
       return;
     }
 
-    router.push("/my-plan");
+    try {
+      const res = await fetch("/api/users/current");
+      if (res.ok) {
+        const user = await res.json();
+        if (user.role === "CEO") {
+          router.push("/dashboard");
+        } else {
+          router.push("/my-plan");
+        }
+      } else {
+        router.push("/my-plan");
+      }
+    } catch {
+      router.push("/my-plan");
+    }
+
+    setLoading(false);
     router.refresh();
   };
 

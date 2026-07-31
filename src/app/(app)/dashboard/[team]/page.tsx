@@ -48,17 +48,27 @@ export default function TeamDrilldownPage({
           currentlyActive: data.tasks.filter((t: any) => t.isActivated).length,
           completedTrendLabel: "",
           performanceIndex: data.overall,
-          initiatives: data.tasks.map((t: any) => ({
-            id: t.taskId,
-            title: t.description,
-            subtitle: t.category,
-            ownerInitials: "—",
-            ownerName: "—",
-            frequency: t.frequency ?? "Weekly",
-            kpi: t.kpiReference ?? "—",
-            active: t.isActivated ?? false,
-            completed: t.status === "COMPLETE",
-          })),
+          initiatives: data.tasks.map((t: any) => {
+            const initials = t.createdBy?.name
+              ? t.createdBy.name
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)
+              : "—";
+            return {
+              id: t.taskId,
+              title: t.description,
+              subtitle: t.category,
+              ownerInitials: initials,
+              ownerName: t.createdBy?.name ?? "—",
+              frequency: t.frequency ?? "Weekly",
+              kpi: t.kpiReference ?? "—",
+              active: t.isActivated ?? false,
+              completed: t.status === "COMPLETE",
+            };
+          }),
         });
       })
       .finally(() => setLoading(false));

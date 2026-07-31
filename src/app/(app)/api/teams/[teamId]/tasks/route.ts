@@ -7,6 +7,17 @@ import { auth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeekStart } from "@/lib/week";
 
+const MOCK_TASKS: Record<string, any[]> = {
+  bu01: [
+    { id: "t1", teamId: "bu01", category: "FINANCE", description: "Reduce operational overhead in regional branches", kpiReference: ">95% Completion", frequency: "WEEKLY" },
+    { id: "t2", teamId: "bu01", category: "CUSTOMER", description: "Weekly response time monitoring for Tier 1 tickets", kpiReference: "<2hr Response", frequency: "WEEKLY" }
+  ],
+  engineering: [
+    { id: "t3", teamId: "engineering", category: "PROCESS_TECH", description: "Migrate legacy reporting to real-time dashboards", kpiReference: "100% Real-time", frequency: "WEEKLY" },
+    { id: "t4", teamId: "engineering", category: "PEOPLE", description: "Conduct weekly team syncs", kpiReference: "100% Attendance", frequency: "WEEKLY" }
+  ],
+};
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
@@ -52,14 +63,15 @@ export async function POST(
       }, { status: 201 });
     }
 
-    const { category, description, kpiReference, frequency, source } = body;
+    const { category, description, details, kpiReference, frequency, source } = body;
     
     const task = await prisma.task.create({
       data: { 
         teamId, 
         createdById, 
-        category, 
+        category: category.toUpperCase(), 
         description, 
+        details: details ?? null,
         kpiReference: kpiReference ?? null, 
         frequency, 
         source: source ?? "ADHOC" 

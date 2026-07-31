@@ -10,7 +10,7 @@ type Role = "TEAM" | "ADMIN" | "CEO";
 
 const ALL_NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "CEO"] as Role[] },
-  { href: "/my-plan", label: "My Action Plan", roles: ["TEAM", "ADMIN", "CEO"] as Role[] },
+  { href: "/my-plan", label: "My Action Plan", roles: ["TEAM", "ADMIN"] as Role[] },
   { href: "/manage-tasks", label: "Manage Tasks", roles: ["ADMIN", "CEO"] as Role[] },
 ];
 

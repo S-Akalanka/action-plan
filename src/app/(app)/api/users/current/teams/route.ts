@@ -1,11 +1,3 @@
-// app/api/users/current/teams/route.ts
-// GET /api/users/current/teams
-//
-// Returns the teams the signed-in user actually belongs to. ADMIN/CEO see
-// every team (matching their access-everything permission via
-// canAccessTeam), regular TEAM users only see teams they have a real
-// Membership row for.
-
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";

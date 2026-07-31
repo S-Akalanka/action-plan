@@ -32,7 +32,6 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       })
       .then((teams: MyTeam[]) => {
         setMyTeams(teams);
-        // Default to this user's first real team, not a hardcoded mock team.
         if (teams.length > 0) setSelectedTeamId(teams[0].id);
       })
       .catch(() => {

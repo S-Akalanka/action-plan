@@ -25,12 +25,12 @@ export default function ManageTasksPage() {
     : null;
 
   useEffect(() => {
-    const teamId = selectedTeamId ?? TEAMS[0].id;
-
-    setLoading(true);
-    fetch(`/api/admin/teams/${teamId}/tasks`)
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchTasks = async () => {
+      setLoading(true);
+      if (selectedTeamId) {
+        const teamId = selectedTeamId;
+        const res = await fetch(`/api/admin/teams/${teamId}/tasks`);
+        const data = await res.json();
         const mapped: StandardTask[] = data.map((t: any) => ({
           id: t.taskId ?? t.id,
           description: t.description,
@@ -42,8 +42,28 @@ export default function ManageTasksPage() {
           isActive: t.isActive,
         }));
         setTasks(mapped);
-      })
-      .finally(() => setLoading(false));
+      } else {
+        // Overview mode: fetch tasks for all teams in parallel
+        const promises = TEAMS.map(async (team) => {
+          const res = await fetch(`/api/admin/teams/${team.id}/tasks`);
+          const data = await res.json();
+          return data.map((t: any) => ({
+            id: t.taskId ?? t.id,
+            description: t.description,
+            details: t.details ?? "",
+            category: t.category,
+            kpi: t.kpiReference ?? "",
+            frequency: t.frequency,
+            teamId: t.teamId ?? team.id,
+            isActive: t.isActive,
+          }));
+        });
+        const results = await Promise.all(promises);
+        setTasks(results.flat());
+      }
+      setLoading(false);
+    };
+    fetchTasks();
   }, [selectedTeamId]);
 
   const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
@@ -83,7 +103,7 @@ export default function ManageTasksPage() {
     });
   };
 
-  const saveTask = (data: Omit<StandardTask, "id">, id?: string) => {
+  const saveTask = (data: Omit<StandardTask, "id"> & { teamId: string }, id?: string) => {
     if (id) {
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
       fetch(`/api/tasks/${id}`, {
@@ -91,17 +111,21 @@ export default function ManageTasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           description: data.description,
+          details: data.details,
+          category: data.category,
           kpiReference: data.kpi,
+          frequency: data.frequency,
         }),
       });
     } else {
-      const teamId = selectedTeamId ?? TEAMS[0].id;
+      const teamId = data.teamId || selectedTeamId || TEAMS[0].id;
       fetch(`/api/teams/${teamId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           category: data.category,
           description: data.description,
+          details: data.details,
           kpiReference: data.kpi,
           frequency: data.frequency,
           source: "STANDARD",
@@ -111,7 +135,7 @@ export default function ManageTasksPage() {
         .then((created) => {
           setTasks((prev) => [
             ...prev,
-            { id: created.taskId, ...data, teamId, isActive: true },
+            { id: created.taskId ?? created.id, ...data, teamId, isActive: true },
           ]);
         });
     }

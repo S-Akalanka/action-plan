@@ -92,6 +92,7 @@ model Task {
 
   category      Category
   description   String
+  details       String?
   kpiReference  String?
   frequency     Frequency
   source        Source    @default(STANDARD)

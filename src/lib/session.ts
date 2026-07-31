@@ -2,7 +2,7 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { getServerSession } from "next-auth/next";
-import { seedDatabaseIfEmpty } from "../lib/db-seed";
+import { seedDatabase } from "../lib/db-seed";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,8 +16,13 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.username) return null;
 
-        // Auto-seed database if empty
-        await seedDatabaseIfEmpty();
+        // Auto-seed database if empty (seedDatabase() itself is destructive —
+        // it deleteMany's every table — so only call it when there's nothing
+        // to lose, not on every login).
+        const teamCount = await prisma.team.count();
+        if (teamCount === 0) {
+          await seedDatabase();
+        }
 
         const username = credentials.username.trim();
         const roleInput = (credentials.role || "").toUpperCase();

@@ -32,15 +32,17 @@ export function TaskGroup({
         </span>
       </header>
       <ul>
-        {tasks.map((task) => (
-          <MyPlanTaskRow
-            key={task.id}
-            task={task}
-            onToggle={() => onToggle(task.id)}
-            onToggleActive={() => onToggleActive(task.id)}
-            onDelete={() => onDelete(task.id)}
-          />
-        ))}
+        {tasks.map((task) => {
+          return (
+            <MyPlanTaskRow
+              key={task.id}
+              task={task}
+              onToggle={() => onToggle(task.id)}
+              onToggleActive={() => onToggleActive(task.id)}
+              onDelete={() => onDelete(task.id)}
+            />
+          );
+        })}
       </ul>
     </section>
   );

@@ -2,42 +2,9 @@
 // GET /api/dashboard?week=2026-06-29
 
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeekStart } from "@/lib/week";
-
-const MOCK_DASHBOARD_DATA = [
-  {
-    teamId: "bu01",
-    teamName: "BU01 · North America Retail",
-    categories: { FINANCE: 82, CUSTOMER: 91, PROCESS_TECH: 64, PEOPLE: 77 },
-    overall: 78,
-  },
-  {
-    teamId: "bu02",
-    teamName: "BU02 · EMEA Wholesale",
-    categories: { FINANCE: 48, CUSTOMER: 65, PROCESS_TECH: 31, PEOPLE: 64 },
-    overall: 52,
-  },
-  {
-    teamId: "engineering",
-    teamName: "Engineering",
-    categories: { FINANCE: 70, CUSTOMER: 80, PROCESS_TECH: 92, PEOPLE: 55 },
-    overall: 74,
-  },
-  {
-    teamId: "hr-admin",
-    teamName: "HR & Admin",
-    categories: { FINANCE: 90, CUSTOMER: 85, PROCESS_TECH: 75, PEOPLE: 92 },
-    overall: 86,
-  },
-  {
-    teamId: "sales-marketing",
-    teamName: "Sales & Marketing",
-    categories: { FINANCE: 60, CUSTOMER: 88, PROCESS_TECH: 50, PEOPLE: 70 },
-    overall: 67,
-  },
-];
+import { isTaskDueForWeek } from "@/lib/week";
 
 export async function GET(req: Request) {
   try {
@@ -47,40 +14,76 @@ export async function GET(req: Request) {
 
     const teams = await prisma.team.findMany();
     if (!teams || teams.length === 0) {
-      return NextResponse.json(MOCK_DASHBOARD_DATA);
+      return NextResponse.json({ aggregates: {}, teams: [] });
     }
 
-    const result = await Promise.all(
-      teams.map(async (team) => {
-        const instances = await prisma.taskInstance.findMany({
-          where: { weekStartDate: weekStart, task: { teamId: team.id } },
-          include: { task: true },
-        });
-        
-        const categories = ["FINANCE", "CUSTOMER", "PROCESS_TECH", "PEOPLE"] as const;
-        const categoryPct: Record<string, number> = {};
-        
-        for (const cat of categories) {
-          const inCategory = instances.filter((i) => i.task.category === cat);
-          const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
-          categoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
-        }
-        
-        const totalCompleted = instances.filter((i) => i.status === "COMPLETE").length;
-        const overall = instances.length > 0 ? Math.round((totalCompleted / instances.length) * 100) : 0;
-        
-        return { 
-          teamId: team.id, 
-          teamName: team.teamName, 
-          categories: categoryPct, 
-          overall 
-        };
-      })
-    );
+    // Ensure task instances exist for all active tasks that are due this week.
+    // This is the core logic: tasks define the schedule (frequency),
+    // and instances are lazily created per-week when the dashboard is viewed.
+    const activeTasks = await prisma.task.findMany({
+      where: { isActive: true },
+    });
 
-    return NextResponse.json(result);
+    const tasksNeedingInstances: string[] = [];
+    for (const task of activeTasks) {
+      if (isTaskDueForWeek(task.frequency, weekStart)) {
+        tasksNeedingInstances.push(task.id);
+      }
+    }
+
+    if (tasksNeedingInstances.length > 0) {
+      // Use createMany with skipDuplicates so we don't fail on existing instances
+      await prisma.taskInstance.createMany({
+        data: tasksNeedingInstances.map((taskId) => ({
+          taskId,
+          weekStartDate: weekStart,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Now fetch all instances for this week (including freshly created ones)
+    const allInstances = await prisma.taskInstance.findMany({
+      where: { weekStartDate: weekStart },
+      include: { task: true },
+    });
+
+    const categories = ["FINANCE", "CUSTOMER", "PROCESS_TECH", "PEOPLE"] as const;
+    const globalCategoryPct: Record<string, number> = {};
+    for (const cat of categories) {
+      const inCategory = allInstances.filter((i) => i.task.category === cat);
+      const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
+      globalCategoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
+    }
+
+    const teamResults = teams.map((team) => {
+      const instances = allInstances.filter((i) => i.task.teamId === team.id);
+      
+      const categoryPct: Record<string, number> = {};
+      for (const cat of categories) {
+        const inCategory = instances.filter((i) => i.task.category === cat);
+        const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
+        categoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
+      }
+      
+      const totalCompleted = instances.filter((i) => i.status === "COMPLETE").length;
+      const overall = instances.length > 0 ? Math.round((totalCompleted / instances.length) * 100) : 0;
+      
+      return { 
+        teamId: team.id, 
+        teamName: team.teamName, 
+        categories: categoryPct, 
+        overall,
+        taskCount: instances.length,
+      };
+    });
+
+    return NextResponse.json({
+      aggregates: globalCategoryPct,
+      teams: teamResults,
+    });
   } catch (error) {
-    console.warn("Database query failed in /api/dashboard, serving fallback data:", error);
-    return NextResponse.json(MOCK_DASHBOARD_DATA);
+    console.error("Database query failed in /api/dashboard:", error);
+    return NextResponse.json({ aggregates: {}, teams: [] }, { status: 500 });
   }
 }

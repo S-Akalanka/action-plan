@@ -21,37 +21,80 @@ export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const { myTeams, selectedTeamId } = useTeam();
+  const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
 
   useEffect(() => {
-    if (!selectedTeamId) return;
+    if (loadingTeams) return;
+
+    if (myTeams.length === 0) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
-    Promise.all([
-      fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
-      fetch(`/api/teams/${selectedTeamId}/instances`).then((res) => res.json()),
-    ])
-      .then(([tasksData, instancesData]) => {
-        const merged: MyPlanTask[] = tasksData.map((task: any) => {
-          const instance = instancesData.find((i: any) => i.taskId === task.id);
-          return {
-            id: task.id,
-            teamId: task.teamId,
-            desc: task.description,
-            category: CATEGORY_MAP[task.category] ?? task.category,
-            kpi: task.kpiReference ?? "",
-            frequency: task.frequency,
-            done: instance?.status === "COMPLETE",
-            active: instance?.isActivated ?? false,
-            completedAt: instance?.completedAt ?? undefined,
-          };
-        });
-        setTasks(merged);
-      })
-      .finally(() => setLoading(false));
-  }, [selectedTeamId]);
+
+    if (selectedTeamId) {
+      Promise.all([
+        fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
+        fetch(`/api/teams/${selectedTeamId}/instances`).then((res) => res.json()),
+      ])
+        .then(([tasksData, instancesData]) => {
+          const merged: MyPlanTask[] = tasksData.map((task: any) => {
+            const instance = instancesData.find((i: any) => i.taskId === task.id);
+            return {
+              id: task.id,
+              teamId: task.teamId,
+              desc: task.description,
+              category: CATEGORY_MAP[task.category] ?? task.category,
+              kpi: task.kpiReference ?? "",
+              frequency: task.frequency,
+              done: instance?.status === "COMPLETE",
+              active: instance?.isActivated ?? false,
+              completedAt: instance?.completedAt ?? undefined,
+            };
+          });
+          setTasks(merged);
+        })
+        .catch((err) => console.error("Error loading tasks", err))
+        .finally(() => setLoading(false));
+    } else {
+      // selectedTeamId is null (Overview) - load tasks for all teams
+      const fetchPromises = myTeams.map((team) =>
+        Promise.all([
+          fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
+          fetch(`/api/teams/${team.id}/instances`).then((res) => res.json()),
+        ]).then(([tasksData, instancesData]) => {
+          if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) {
+            return [];
+          }
+          return tasksData.map((task: any) => {
+            const instance = instancesData.find((i: any) => i.taskId === task.id);
+            return {
+              id: task.id,
+              teamId: task.teamId,
+              desc: task.description,
+              category: CATEGORY_MAP[task.category] ?? task.category,
+              kpi: task.kpiReference ?? "",
+              frequency: task.frequency,
+              done: instance?.status === "COMPLETE",
+              active: instance?.isActivated ?? false,
+              completedAt: instance?.completedAt ?? undefined,
+            };
+          });
+        })
+      );
+
+      Promise.all(fetchPromises)
+        .then((results) => {
+          setTasks(results.flat());
+        })
+        .catch((err) => console.error("Error loading all tasks", err))
+        .finally(() => setLoading(false));
+    }
+  }, [selectedTeamId, myTeams, loadingTeams]);
 
   const overallPercent = useMemo(() => {
     if (tasks.length === 0) return 0;
@@ -134,7 +177,7 @@ export default function MyPlanPage() {
         setTasks((prev) => [
           ...prev,
           {
-            id: created.taskId,
+            id: created.id,
             teamId: selectedTeamId,
             desc: data.desc,
             category: data.category,
@@ -149,7 +192,7 @@ export default function MyPlanPage() {
     setAdding(false);
   };
 
-  if (loading) {
+  if (loadingTeams || loading) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
@@ -157,7 +200,7 @@ export default function MyPlanPage() {
     );
   }
 
-  if (!selectedTeamId) {
+  if (myTeams.length === 0) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">You are not a member of any team.</p>
@@ -171,16 +214,18 @@ export default function MyPlanPage() {
         <div>
           <h1 className="text-2xl font-bold">My Action Plan</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Week 42 · {selectedTeam ? selectedTeam.teamName : ""}
+            Week 42 · {selectedTeam ? selectedTeam.teamName : "Overview"}
           </p>
         </div>
-        <Button
-          onClick={() => setAdding((v) => !v)}
-          className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
-        >
-          <Plus className="h-4 w-4" />
-          Add task
-        </Button>
+        {selectedTeamId && (
+          <Button
+            onClick={() => setAdding((v) => !v)}
+            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
+          >
+            <Plus className="h-4 w-4" />
+            Add task
+          </Button>
+        )}
       </div>
 
       <div className="mb-8">
@@ -209,7 +254,7 @@ export default function MyPlanPage() {
 
       {tasks.length === 0 && (
         <div className="rounded-xl border border-dashed border-[#E5E9F0] bg-white px-5 py-10 text-center text-sm text-[#9AA3B2]">
-          No tasks tracked{selectedTeam ? ` for ${selectedTeam.teamName}` : ""} yet.
+          No tasks tracked{selectedTeam ? ` for ${selectedTeam.teamName}` : " across your teams"} yet.
         </div>
       )}
     </main>

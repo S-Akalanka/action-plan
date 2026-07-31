@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/mock-data";
 import type { CategoryKey, StandardTask, StandardTaskFrequency } from "@/lib/types";
+import { useTeam } from "@/lib/team-context";
 
 const FREQUENCIES: StandardTaskFrequency[] = ["Weekly", "Bi-weekly", "Monthly", "Quarterly"];
 
@@ -29,6 +30,7 @@ const EMPTY_FORM = {
   category: CATEGORIES[0].key as CategoryKey,
   kpi: "",
   frequency: "Weekly" as StandardTaskFrequency,
+  teamId: "",
 };
 
 export function StandardTaskFormDialog({
@@ -40,8 +42,9 @@ export function StandardTaskFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTask?: StandardTask | null;
-  onSave: (data: Omit<StandardTask, "id">, id?: string) => void;
+  onSave: (data: Omit<StandardTask, "id"> & { teamId: string }, id?: string) => void;
 }) {
+  const { myTeams, selectedTeamId } = useTeam();
   const [form, setForm] = useState(EMPTY_FORM);
   const isEditing = Boolean(initialTask);
 
@@ -55,14 +58,18 @@ export function StandardTaskFormDialog({
               category: initialTask.category,
               kpi: initialTask.kpi,
               frequency: initialTask.frequency,
+              teamId: initialTask.teamId || selectedTeamId || myTeams[0]?.id || "",
             }
-          : EMPTY_FORM
+          : {
+              ...EMPTY_FORM,
+              teamId: selectedTeamId || myTeams[0]?.id || "",
+            }
       );
     }
-  }, [open, initialTask]);
+  }, [open, initialTask, selectedTeamId, myTeams]);
 
   const handleSave = () => {
-    if (!form.description.trim()) return;
+    if (!form.description.trim() || !form.teamId) return;
     onSave(
       {
         description: form.description.trim(),
@@ -70,6 +77,7 @@ export function StandardTaskFormDialog({
         category: form.category,
         kpi: form.kpi.trim() || "—",
         frequency: form.frequency,
+        teamId: form.teamId,
         isActive: initialTask ? initialTask.isActive : true,
       },
       initialTask?.id
@@ -85,6 +93,27 @@ export function StandardTaskFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div>
+            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
+              Assign to Team
+            </Label>
+            <Select
+              value={form.teamId}
+              onValueChange={(v) => setForm((f) => ({ ...f, teamId: v ?? "" }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a team" />
+              </SelectTrigger>
+              <SelectContent>
+                {myTeams.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.teamName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
               Description
