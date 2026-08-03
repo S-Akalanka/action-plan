@@ -1,18 +1,31 @@
 // app/api/admin/teams/[teamId]/tasks/route.ts
-// GET /api/admin/teams/[teamId]/tasks
+// GET  /api/admin/teams/[teamId]/tasks
+// POST /api/admin/teams/[teamId]/tasks
+//
+// GET now also supports teamId = "all" for the Overview view — returns
+// every team's standard tasks with their assigned team name attached,
+// so Manage Tasks can show an "Assigned Team" column instead of the
+// removed Active/Inactive toggle.
 
 import { NextResponse } from "next/server";
+import { Category, Frequency as PrismaFrequency } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/session";
+import { requireAdminOrCeo } from "@/lib/auth";
+import { getCurrentWeekStart } from "@/lib/week";
 
-const MOCK_STANDARD_TASKS: Record<string, any[]> = {
-  bu01: [
-    { taskId: "t1", teamId: "bu01", category: "FINANCE", description: "Reconcile weekly cash position", details: "", kpiReference: "Ledger Accuracy %", frequency: "WEEKLY", isActive: true },
-    { taskId: "t2", teamId: "bu01", category: "CUSTOMER", description: "Review top-10 customer health scores", details: "", kpiReference: "NPS", frequency: "WEEKLY", isActive: true },
-  ],
-  engineering: [
-    { taskId: "t3", teamId: "engineering", category: "PROCESS_TECH", description: "Deploy weekly staging build", details: "", kpiReference: "Uptime %", frequency: "WEEKLY", isActive: true },
-    { taskId: "t4", teamId: "engineering", category: "PEOPLE", description: "Conduct 1-on-1 development reviews", details: "", kpiReference: "Retention Rate", frequency: "WEEKLY", isActive: true },
-  ],
+const CATEGORY_TO_ENUM: Record<string, Category> = {
+  Finance: "FINANCE",
+  Customer: "CUSTOMER",
+  "Process/Tech": "PROCESS_TECH",
+  People: "PEOPLE",
+};
+
+const FREQUENCY_TO_ENUM: Record<string, PrismaFrequency> = {
+  Weekly: "WEEKLY",
+  "Bi-weekly": "BI_WEEKLY",
+  Monthly: "MONTHLY",
+  Quarterly: "QUARTERLY",
 };
 
 export async function GET(
@@ -21,19 +34,64 @@ export async function GET(
 ) {
   const { teamId } = await params;
 
-  try {
-    const tasks = await prisma.task.findMany({ 
-      where: { teamId, source: "STANDARD" }, 
-      orderBy: { category: "asc" } 
-    });
-    
-    if (!tasks || tasks.length === 0) {
-      return NextResponse.json(MOCK_STANDARD_TASKS[teamId] ?? []);
-    }
-    
-    return NextResponse.json(tasks);
-  } catch (error) {
-    console.warn(`Database query failed in /api/admin/teams/${teamId}/tasks, serving fallback data:`, error);
-    return NextResponse.json(MOCK_STANDARD_TASKS[teamId] ?? []);
+  const tasks = await prisma.task.findMany({
+    where: teamId === "all" ? { source: "STANDARD" } : { teamId, source: "STANDARD" },
+    orderBy: { createdAt: "desc" },
+    include: {
+      team: { select: { teamName: true } },
+    },
+  });
+
+  const withTeamName = tasks.map((t) => ({
+    ...t,
+    teamName: t.team.teamName,
+    team: undefined,
+  }));
+
+  return NextResponse.json(withTeamName);
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ teamId: string }> }
+) {
+  const { teamId } = await params;
+
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const isAdminOrCeo = await requireAdminOrCeo(session.user.id);
+  if (!isAdminOrCeo) {
+    return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { category, description, kpiReference, frequency } = body;
+
+  const task = await prisma.task.create({
+    data: {
+      teamId,
+      createdById: session.user.id,
+      category: CATEGORY_TO_ENUM[category] ?? (category as Category),
+      description,
+      kpiReference: kpiReference ?? null,
+      frequency: FREQUENCY_TO_ENUM[frequency] ?? (frequency as PrismaFrequency),
+      source: "STANDARD",
+    },
+    include: { team: { select: { teamName: true } } },
+  });
+
+  const instance = await prisma.taskInstance.create({
+    data: {
+      taskId: task.id,
+      weekStartDate: getCurrentWeekStart(),
+    },
+  });
+
+  return NextResponse.json(
+    { ...task, taskId: task.id, teamName: task.team.teamName, firstInstanceId: instance.id },
+    { status: 201 }
+  );
 }

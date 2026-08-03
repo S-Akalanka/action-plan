@@ -12,8 +12,7 @@ import { useTeam } from "@/lib/team-context";
 const PAGE_SIZE = 5;
 
 export default function ManageTasksPage() {
-  // Teams now come from useTeam()'s myTeams (real API), not a mock import.
-  const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();
+  const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
   const [tasks, setTasks] = useState<StandardTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,17 +20,19 @@ export default function ManageTasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<StandardTask | null>(null);
 
+  // selectedTeamId === null means "Overview" — matches the same convention
+  // AppSidebar already uses (Overview button clears selectedTeamId).
   const selectedTeam = selectedTeamId
     ? myTeams.find((t) => t.id === selectedTeamId)
     : null;
 
   useEffect(() => {
-    if (loadingTeams || myTeams.length === 0) return;
+    if (loadingTeams) return;
 
-    const teamId = selectedTeamId ?? myTeams[0].id;
+    const fetchTeamId = selectedTeamId ?? "all";
 
     setLoading(true);
-    fetch(`/api/admin/teams/${teamId}/tasks`)
+    fetch(`/api/admin/teams/${fetchTeamId}/tasks`)
       .then((res) => res.json())
       .then((data) => {
         const mapped: StandardTask[] = data.map((t: any) => ({
@@ -41,13 +42,13 @@ export default function ManageTasksPage() {
           category: t.category,
           kpi: t.kpiReference ?? "",
           frequency: t.frequency,
-          teamId: t.teamId ?? teamId,
-          isActive: t.isActive,
+          teamId: t.teamId,
+          teamName: t.teamName,
         }));
         setTasks(mapped);
       })
       .finally(() => setLoading(false));
-  }, [selectedTeamId, myTeams, loadingTeams]);
+  }, [selectedTeamId, loadingTeams]);
 
   const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
   const pageTasks = useMemo(
@@ -70,20 +71,6 @@ export default function ManageTasksPage() {
     fetch(`/api/tasks/${id}`, { method: "DELETE" });
   };
 
-  const toggleActive = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    const nextActive = !task.isActive;
-
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isActive: nextActive } : t)));
-
-    fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: nextActive }),
-    });
-  };
-
   const saveTask = (data: Omit<StandardTask, "id">, id?: string) => {
     if (id) {
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
@@ -93,10 +80,11 @@ export default function ManageTasksPage() {
         body: JSON.stringify({ description: data.description, kpiReference: data.kpi }),
       });
     } else {
-      const teamId = selectedTeamId ?? myTeams[0]?.id;
-      if (!teamId) return;
+      // Adding a new task from Overview needs an explicit team — can't
+      // create a task with no owning team. Require a specific team selected.
+      if (!selectedTeamId) return;
 
-      fetch(`/api/teams/${teamId}/tasks`, {
+      fetch(`/api/admin/teams/${selectedTeamId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -104,12 +92,14 @@ export default function ManageTasksPage() {
           description: data.description,
           kpiReference: data.kpi,
           frequency: data.frequency,
-          source: "STANDARD",
         }),
       })
         .then((res) => res.json())
         .then((created) => {
-          setTasks((prev) => [...prev, { id: created.taskId, ...data, teamId, isActive: true }]);
+          setTasks((prev) => [
+            { id: created.taskId, ...data, teamId: selectedTeamId, teamName: created.teamName },
+            ...prev,
+          ]);
         });
     }
   };
@@ -137,7 +127,9 @@ export default function ManageTasksPage() {
           </span>
           <Button
             onClick={openAddDialog}
-            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
+            disabled={!selectedTeamId}
+            title={!selectedTeamId ? "Select a specific team to add a task" : undefined}
+            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             Add Standard Task
@@ -146,12 +138,7 @@ export default function ManageTasksPage() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-[#E5E9F0] bg-white shadow-sm">
-        <StandardTasksTable
-          tasks={pageTasks}
-          onEdit={openEditDialog}
-          onDelete={deleteTask}
-          onToggleActive={toggleActive}
-        />
+        <StandardTasksTable tasks={pageTasks} onEdit={openEditDialog} onDelete={deleteTask} />
         <Pagination
           page={page}
           totalPages={totalPages}

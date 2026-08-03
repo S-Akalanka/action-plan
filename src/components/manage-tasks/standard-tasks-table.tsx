@@ -1,26 +1,23 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import type { StandardTask } from "@/lib/types";
 
 export function StandardTasksTable({
   tasks,
   onEdit,
   onDelete,
-  onToggleActive,
 }: {
   tasks: StandardTask[];
   onEdit: (task: StandardTask) => void;
   onDelete: (id: string) => void;
-  onToggleActive: (id: string) => void;
 }) {
   return (
     <>
-      <div className="hidden grid-cols-[1fr_140px_200px_120px_90px_100px] gap-4 border-b border-[#E5E9F0] bg-[#F9FAFB] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#9AA3B2] md:grid">
+      <div className="hidden grid-cols-[1fr_140px_160px_140px_120px_90px] gap-4 border-b border-[#E5E9F0] bg-[#F9FAFB] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#9AA3B2] md:grid">
         <span>Description</span>
         <span>Category</span>
         <span>KPI</span>
         <span>Frequency</span>
-        <span>Active</span>
+        <span>Assigned Team</span>
         <span className="text-right">Actions</span>
       </div>
 
@@ -28,7 +25,7 @@ export function StandardTasksTable({
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[1fr_140px_200px_120px_90px_100px] md:items-center md:gap-4"
+            className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[1fr_140px_160px_140px_120px_90px] md:items-center md:gap-4"
           >
             <div>
               <p className="text-sm font-semibold text-[#16233F]">{task.description}</p>
@@ -37,17 +34,7 @@ export function StandardTasksTable({
             <span className="text-sm text-[#5B6472]">{task.category}</span>
             <span className="text-sm text-[#5B6472]">{task.kpi}</span>
             <span className="text-sm text-[#5B6472]">{task.frequency}</span>
-            {/*
-              Retiring a task (isActive: false) stops it from generating new
-              weekly instances going forward, without deleting the task or
-              its history — distinct from the Delete action below, which is
-              a permanent removal.
-            */}
-            <Switch
-              checked={task.isActive}
-              onCheckedChange={() => onToggleActive(task.id)}
-              aria-label={`Toggle ${task.description} active`}
-            />
+            <span className="text-sm text-[#5B6472]">{(task as any).teamName ?? "—"}</span>
             <div className="flex items-center gap-3 md:justify-end">
               <button
                 className="text-[#9AA3B2] hover:text-[#16233F]"
