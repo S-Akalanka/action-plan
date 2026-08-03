@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
+import { PendingCommentsBanner, type PendingCommentTask } from "@/components/my-plan/pending-comments-banner";
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
@@ -17,13 +18,41 @@ const CATEGORY_MAP: Record<string, CategoryKey> = {
   PEOPLE: "People",
 };
 
+const mock_tasks=[
+  { instanceId: "test1", taskDescription: "Review Q3 spend", teamName: "BU01", weekStartDate: "2026-06-22" },
+  { instanceId: "test2", taskDescription: "Deploy staging build", teamName: "Engineering", weekStartDate: "2026-06-15" },
+]
+
 export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
-  const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
+  const [pendingComments, setPendingComments] = useState<PendingCommentTask[]>([]);
+
+  useEffect(() => {
+    fetch("/api/me/pending-comments")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: PendingCommentTask[]) => setPendingComments(data))
+      .catch(() => setPendingComments(mock_tasks));
+  }, []);
+
+  const handleSubmitComment = (instanceId: string, comment: string) => {
+    setPendingComments((prev) => prev.filter((t) => t.instanceId !== instanceId));
+
+    fetch(`/api/instances/${instanceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    }).catch(() => {
+    });
+  };
+  // ──────────────────────────────────────────────────────────────────────
+
+  const selectedTeam = selectedTeamId
+    ? myTeams.find((t) => t.id === selectedTeamId) ?? null
+    : null;
 
   useEffect(() => {
     if (loadingTeams) return;
@@ -61,15 +90,12 @@ export default function MyPlanPage() {
         .catch((err) => console.error("Error loading tasks", err))
         .finally(() => setLoading(false));
     } else {
-      // selectedTeamId is null (Overview) - load tasks for all teams
       const fetchPromises = myTeams.map((team) =>
         Promise.all([
           fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
           fetch(`/api/teams/${team.id}/instances`).then((res) => res.json()),
         ]).then(([tasksData, instancesData]) => {
-          if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) {
-            return [];
-          }
+          if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
           return tasksData.map((task: any) => {
             const instance = instancesData.find((i: any) => i.taskId === task.id);
             return {
@@ -88,9 +114,7 @@ export default function MyPlanPage() {
       );
 
       Promise.all(fetchPromises)
-        .then((results) => {
-          setTasks(results.flat());
-        })
+        .then((results) => setTasks(results.flat()))
         .catch((err) => console.error("Error loading all tasks", err))
         .finally(() => setLoading(false));
     }
@@ -227,6 +251,8 @@ export default function MyPlanPage() {
           </Button>
         )}
       </div>
+
+      <PendingCommentsBanner tasks={pendingComments} onSubmitComment={handleSubmitComment} />
 
       <div className="mb-8">
         <SummaryStrip overallPercent={overallPercent} categoryStats={categoryStats} />
