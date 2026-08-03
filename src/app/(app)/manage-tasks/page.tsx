@@ -6,31 +6,34 @@ import { Button } from "@/components/ui/button";
 import { StandardTasksTable } from "@/components/manage-tasks/standard-tasks-table";
 import { StandardTaskFormDialog } from "@/components/manage-tasks/standard-task-form-dialog";
 import { Pagination } from "@/components/manage-tasks/pagination";
-import { TEAMS } from "@/lib/mock-data";
 import type { StandardTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 
 const PAGE_SIZE = 5;
 
 export default function ManageTasksPage() {
+  // Teams now come from useTeam()'s myTeams (real API), not a mock import.
+  const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();
+
   const [tasks, setTasks] = useState<StandardTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const { selectedTeamId } = useTeam();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<StandardTask | null>(null);
 
   const selectedTeam = selectedTeamId
-    ? TEAMS.find((t) => t.id === selectedTeamId)
+    ? myTeams.find((t) => t.id === selectedTeamId)
     : null;
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      setLoading(true);
-      if (selectedTeamId) {
-        const teamId = selectedTeamId;
-        const res = await fetch(`/api/admin/teams/${teamId}/tasks`);
-        const data = await res.json();
+    if (loadingTeams || myTeams.length === 0) return;
+
+    const teamId = selectedTeamId ?? myTeams[0].id;
+
+    setLoading(true);
+    fetch(`/api/admin/teams/${teamId}/tasks`)
+      .then((res) => res.json())
+      .then((data) => {
         const mapped: StandardTask[] = data.map((t: any) => ({
           id: t.taskId ?? t.id,
           description: t.description,
@@ -42,29 +45,9 @@ export default function ManageTasksPage() {
           isActive: t.isActive,
         }));
         setTasks(mapped);
-      } else {
-        // Overview mode: fetch tasks for all teams in parallel
-        const promises = TEAMS.map(async (team) => {
-          const res = await fetch(`/api/admin/teams/${team.id}/tasks`);
-          const data = await res.json();
-          return data.map((t: any) => ({
-            id: t.taskId ?? t.id,
-            description: t.description,
-            details: t.details ?? "",
-            category: t.category,
-            kpi: t.kpiReference ?? "",
-            frequency: t.frequency,
-            teamId: t.teamId ?? team.id,
-            isActive: t.isActive,
-          }));
-        });
-        const results = await Promise.all(promises);
-        setTasks(results.flat());
-      }
-      setLoading(false);
-    };
-    fetchTasks();
-  }, [selectedTeamId]);
+      })
+      .finally(() => setLoading(false));
+  }, [selectedTeamId, myTeams, loadingTeams]);
 
   const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
   const pageTasks = useMemo(
@@ -92,9 +75,7 @@ export default function ManageTasksPage() {
     if (!task) return;
     const nextActive = !task.isActive;
 
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, isActive: nextActive } : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isActive: nextActive } : t)));
 
     fetch(`/api/tasks/${id}`, {
       method: "PATCH",
@@ -103,29 +84,24 @@ export default function ManageTasksPage() {
     });
   };
 
-  const saveTask = (data: Omit<StandardTask, "id"> & { teamId: string }, id?: string) => {
+  const saveTask = (data: Omit<StandardTask, "id">, id?: string) => {
     if (id) {
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
       fetch(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: data.description,
-          details: data.details,
-          category: data.category,
-          kpiReference: data.kpi,
-          frequency: data.frequency,
-        }),
+        body: JSON.stringify({ description: data.description, kpiReference: data.kpi }),
       });
     } else {
-      const teamId = data.teamId || selectedTeamId || TEAMS[0].id;
+      const teamId = selectedTeamId ?? myTeams[0]?.id;
+      if (!teamId) return;
+
       fetch(`/api/teams/${teamId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           category: data.category,
           description: data.description,
-          details: data.details,
           kpiReference: data.kpi,
           frequency: data.frequency,
           source: "STANDARD",
@@ -133,15 +109,12 @@ export default function ManageTasksPage() {
       })
         .then((res) => res.json())
         .then((created) => {
-          setTasks((prev) => [
-            ...prev,
-            { id: created.taskId ?? created.id, ...data, teamId, isActive: true },
-          ]);
+          setTasks((prev) => [...prev, { id: created.taskId, ...data, teamId, isActive: true }]);
         });
     }
   };
 
-  if (loading) {
+  if (loadingTeams || loading) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
@@ -155,7 +128,7 @@ export default function ManageTasksPage() {
         <div>
           <h1 className="text-2xl font-bold">Manage Standard Tasks</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Administer global tasks applied across business units · {selectedTeam ? selectedTeam.label : "All Business Units"}
+            Administer global tasks applied across business units · {selectedTeam ? selectedTeam.teamName : "All Business Units"}
           </p>
         </div>
         <div className="flex items-center gap-3">

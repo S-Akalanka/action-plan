@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { ClipboardCheck, Eye, Filter } from "lucide-react";
 import { WeekSelector } from "@/components/ui/week-selector";
-import { TEAMS } from "@/lib/mock-data";
 import type { TeamDrilldownStats } from "@/lib/types";
 
 function getMonday(d: Date) {
@@ -28,15 +27,23 @@ export default function TeamDrilldownPage({
   const { team } = use(params);
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
   const [stats, setStats] = useState<TeamDrilldownStats | null>(null);
+  const [teamName, setTeamName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const selectedTeam = TEAMS.find((t) => t.id === team);
+  const [notFoundFlag, setNotFoundFlag] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     fetch(`/api/dashboard/${team}?week=${toDateParam(selectedWeek)}`)
       .then((res) => res.json())
       .then((data) => {
+        if (!data || !data.teamId) {
+          setNotFoundFlag(true);
+          return;
+        }
+
+        // Team label now comes straight from the API response, not a mock lookup.
+        setTeamName(data.teamName);
+
         const completed = data.tasks.filter((t: any) => t.status === "COMPLETE").length;
         const incomplete = data.tasks.length - completed;
 
@@ -74,11 +81,11 @@ export default function TeamDrilldownPage({
       .finally(() => setLoading(false));
   }, [team, selectedWeek]);
 
-  if (!selectedTeam) {
+  if (notFoundFlag) {
     notFound();
   }
 
-  if (loading || !stats) {
+  if (loading || !stats || !teamName) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
@@ -95,13 +102,13 @@ export default function TeamDrilldownPage({
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold">{selectedTeam.label} · Team Drill-down</h1>
+            <h1 className="text-2xl font-bold">{teamName} · Team Drill-down</h1>
             <span className="rounded-md bg-[#F1F2F5] px-2 py-1 text-xs font-semibold text-[#5B6472]">
               READ-ONLY
             </span>
           </div>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Viewing detailed action plans and status for {selectedTeam.label}.
+            Viewing detailed action plans and status for {teamName}.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

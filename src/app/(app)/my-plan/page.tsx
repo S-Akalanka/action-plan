@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
-import { CATEGORIES } from "@/lib/mock-data";
+import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 

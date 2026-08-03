@@ -1,16 +1,16 @@
 "use client";
 
-import { Plus, LayoutGrid } from "lucide-react";
-import { TEAMS } from "@/lib/mock-data";
+import { Plus, LayoutGrid, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTeam } from "@/lib/team-context";
+import { usePathname } from "next/navigation";
 
-export function PlanSidebar({
-  selectedTeamId,
-  onSelect,
-}: {
-  selectedTeamId: string;
-  onSelect: (teamId: string) => void;
-}) {
+export function TeamSidebar() {
+  const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();
+  const pathname = usePathname();
+
+  if (pathname === "/" || pathname.startsWith("/dashboard")) return null;
+
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-[#E5E9F0] bg-white px-4 py-6 md:flex">
       <div>
@@ -27,25 +27,26 @@ export function PlanSidebar({
         </div>
 
         <nav className="space-y-1">
-          {TEAMS.map((team) => {
-            const Icon = team.icon;
-            const active = selectedTeamId === team.id;
-            return (
-              <button
-                key={team.id}
-                onClick={() => onSelect(team.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                  active
-                    ? "bg-[#DCEBFC] text-[#16233F]"
-                    : "text-[#5B6472] hover:bg-[#F5F6F8]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {team.label}
-              </button>
-            );
-          })}
+          {loadingTeams ? (
+            <p className="px-3 py-2 text-xs text-[#9AA3B2]">Loading teams…</p>
+          ) : (
+            myTeams.map((team) => {
+              const active = selectedTeamId === team.id;
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => setSelectedTeamId(team.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    active ? "bg-[#DCEBFC] text-[#16233F]" : "text-[#5B6472] hover:bg-[#F5F6F8]"
+                  )}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {team.teamName}
+                </button>
+              );
+            })
+          )}
         </nav>
       </div>
 

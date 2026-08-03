@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORIES } from "@/lib/mock-data";
+import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, StandardTask, StandardTaskFrequency } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
 
