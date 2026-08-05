@@ -23,6 +23,7 @@ enum Category {
 }
 
 enum Frequency {
+  ONCE
   WEEKLY
   BI_WEEKLY
   MONTHLY
@@ -96,6 +97,7 @@ model Task {
   kpiReference  String?
   frequency     Frequency
   source        Source    @default(STANDARD)
+  comment       String?
   isActive      Boolean   @default(true)
 
   instances     TaskInstance[]

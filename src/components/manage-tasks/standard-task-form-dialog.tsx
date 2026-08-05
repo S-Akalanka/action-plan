@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,9 +21,8 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, StandardTask, StandardTaskFrequency } from "@/lib/types";
-import { useTeam } from "@/lib/team-context";
 
-const FREQUENCIES: StandardTaskFrequency[] = ["Weekly", "Bi-weekly", "Monthly", "Quarterly"];
+const FREQUENCIES: StandardTaskFrequency[] = ["Once", "Weekly", "Bi-weekly", "Monthly", "Quarterly"];
 
 const EMPTY_FORM = {
   description: "",
@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   category: CATEGORIES[0].key as CategoryKey,
   kpi: "",
   frequency: "Weekly" as StandardTaskFrequency,
-  teamId: "",
+  comment: "",
 };
 
 export function StandardTaskFormDialog({
@@ -42,9 +42,8 @@ export function StandardTaskFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTask?: StandardTask | null;
-  onSave: (data: Omit<StandardTask, "id"> & { teamId: string }, id?: string) => void;
+  onSave: (data: Omit<StandardTask, "id">, id?: string) => void;
 }) {
-  const { myTeams, selectedTeamId } = useTeam();
   const [form, setForm] = useState(EMPTY_FORM);
   const isEditing = Boolean(initialTask);
 
@@ -58,18 +57,15 @@ export function StandardTaskFormDialog({
               category: initialTask.category,
               kpi: initialTask.kpi,
               frequency: initialTask.frequency,
-              teamId: initialTask.teamId || selectedTeamId || myTeams[0]?.id || "",
+              comment: (initialTask as any).comment ?? "",
             }
-          : {
-              ...EMPTY_FORM,
-              teamId: selectedTeamId || myTeams[0]?.id || "",
-            }
+          : EMPTY_FORM
       );
     }
-  }, [open, initialTask, selectedTeamId, myTeams]);
+  }, [open, initialTask]);
 
   const handleSave = () => {
-    if (!form.description.trim() || !form.teamId) return;
+    if (!form.description.trim()) return;
     onSave(
       {
         description: form.description.trim(),
@@ -77,9 +73,8 @@ export function StandardTaskFormDialog({
         category: form.category,
         kpi: form.kpi.trim() || "—",
         frequency: form.frequency,
-        teamId: form.teamId,
-        isActive: initialTask ? initialTask.isActive : true,
-      },
+        comment: form.comment.trim() || null,
+      } as any,
       initialTask?.id
     );
     onOpenChange(false);
@@ -87,33 +82,12 @@ export function StandardTaskFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg bg-gray-100">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Standard Task" : "Add Standard Task"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div>
-            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              Assign to Team
-            </Label>
-            <Select
-              value={form.teamId}
-              onValueChange={(v) => setForm((f) => ({ ...f, teamId: v ?? "" }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a team" />
-              </SelectTrigger>
-              <SelectContent>
-                {myTeams.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.teamName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
               Description
@@ -190,6 +164,18 @@ export function StandardTaskFormDialog({
               value={form.kpi}
               onChange={(e) => setForm((f) => ({ ...f, kpi: e.target.value }))}
               placeholder="e.g. Ledger Accuracy %"
+            />
+          </div>
+
+          <div>
+            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
+              Comment
+            </Label>
+            <Textarea
+              value={form.comment}
+              onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
+              placeholder="Optional note about this task — editable anytime"
+              rows={3}
             />
           </div>
         </div>

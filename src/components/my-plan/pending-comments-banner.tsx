@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, MessageSquareWarning } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquareWarning, Send } from "lucide-react";
 
 export interface PendingCommentTask {
   instanceId: string;
+  taskId: string;
   taskDescription: string;
   teamName: string;
-  weekStartDate: string; // e.g. "2026-06-29"
+  weekStartDate: string;
 }
 
 export function PendingCommentsBanner({
@@ -15,25 +16,25 @@ export function PendingCommentsBanner({
   onSubmitComment,
 }: {
   tasks: PendingCommentTask[];
-  onSubmitComment: (instanceId: string, comment: string) => void;
+  onSubmitComment: (taskId: string, comment: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   if (tasks.length === 0) return null;
 
-  const handleSubmit = (instanceId: string) => {
-    const comment = drafts[instanceId]?.trim();
+  const handleSubmit = (taskId: string) => {
+    const comment = drafts[taskId]?.trim();
     if (!comment) return;
-    onSubmitComment(instanceId, comment);
-    setDrafts((prev) => ({ ...prev, [instanceId]: "" }));
+    onSubmitComment(taskId, comment);
+    setDrafts((prev) => ({ ...prev, [taskId]: "" }));
   };
 
   return (
     <div className="mb-8 overflow-hidden rounded-xl border border-[#F5D0A9] bg-[#FEF3C7]">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-3.5 text-left"
+        className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#FDE9C4]"
       >
         <div className="flex items-center gap-2.5">
           <MessageSquareWarning className="h-4 w-4 text-[#B45309]" />
@@ -41,11 +42,10 @@ export function PendingCommentsBanner({
             {tasks.length} task{tasks.length === 1 ? "" : "s"} from past weeks need a comment
           </span>
         </div>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-[#B45309]" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-[#B45309]" />
-        )}
+        <span className="flex items-center gap-1.5 text-xs font-medium text-[#B45309]">
+          {expanded ? "Hide" : "Review now"}
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
       </button>
 
       {expanded && (
@@ -63,18 +63,22 @@ export function PendingCommentsBanner({
               </div>
               <div className="flex gap-2">
                 <input
-                  value={drafts[task.instanceId] ?? ""}
+                  value={drafts[task.taskId] ?? ""}
                   onChange={(e) =>
-                    setDrafts((prev) => ({ ...prev, [task.instanceId]: e.target.value }))
+                    setDrafts((prev) => ({ ...prev, [task.taskId]: e.target.value }))
                   }
-                  placeholder="Why wasn't this completed?"
-                  className="flex-1 rounded-lg border border-[#E5E9F0] px-3 py-2 text-sm outline-none focus:border-[#16233F]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit(task.taskId);
+                  }}
+                  placeholder="Why wasn't this completed? (click to type)"
+                  className="flex-1 cursor-text rounded-lg border border-[#E5E9F0] px-3 py-2 text-sm outline-none transition-colors focus:border-[#16233F] focus:ring-2 focus:ring-[#DCEBFC]"
                 />
                 <button
-                  onClick={() => handleSubmit(task.instanceId)}
-                  disabled={!drafts[task.instanceId]?.trim()}
-                  className="rounded-lg bg-[#16233F] px-4 py-2 text-sm font-medium text-white hover:bg-[#0F1A30] disabled:opacity-40"
+                  onClick={() => handleSubmit(task.taskId)}
+                  disabled={!drafts[task.taskId]?.trim()}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#16233F] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0F1A30] disabled:cursor-not-allowed disabled:opacity-40"
                 >
+                  <Send className="h-3.5 w-3.5" />
                   Submit
                 </button>
               </div>
