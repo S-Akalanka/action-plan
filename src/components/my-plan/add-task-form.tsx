@@ -18,17 +18,19 @@ export function AddAdHocTaskForm({
   onSave,
   onCancel,
 }: {
-  onSave: (data: { desc: string; category: CategoryKey; kpi: string }) => void;
+  onSave: (data: { desc: string; details: string; category: CategoryKey; kpi: string }) => void;
   onCancel: () => void;
 }) {
   const [desc, setDesc] = useState("");
+  const [details, setDetails] = useState("");
   const [category, setCategory] = useState<CategoryKey>(CATEGORIES[0].key);
   const [kpi, setKpi] = useState("");
 
   const handleSave = () => {
     if (!desc.trim()) return;
-    onSave({ desc: desc.trim(), category, kpi: kpi.trim() || "—" });
+    onSave({ desc: desc.trim(), details: details.trim(), category, kpi: kpi.trim() || "—" });
     setDesc("");
+    setDetails("");
     setKpi("");
     setCategory(CATEGORIES[0].key);
   };
@@ -63,6 +65,16 @@ export function AddAdHocTaskForm({
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="md:col-span-3">
+          <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
+            Details (optional)
+          </Label>
+          <Input
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Additional context about this task"
+          />
         </div>
         <div className="md:col-span-3">
           <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">

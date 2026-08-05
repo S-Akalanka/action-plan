@@ -206,6 +206,7 @@ export interface Team {
 export interface MyPlanTask {
   id: string;
   teamId: string;
+  details?: string;
   desc: string;
   category: CategoryKey;
   kpi: string;
@@ -289,24 +290,3 @@ export interface MyPlanTask {
   /** Timestamp shown once a task is marked done, e.g. "Mon 09:14" */
   completedAt?: string;
 }
-
-// UPDATE toDrillDownInitiative — drop the derived `status` field entirely,
-// pass `active` and `completed` straight through instead:
-
-
-// UPDATE DrillDownInitiative — replace the single `status: InitiativeStatus`
-// field with the two independent booleans:
-
-
-// UPDATE TeamDrilldownStats — totalTasks/completed/inProgress/atRisk treated
-// these as 4 mutually-exclusive buckets, which doesn't hold once active and
-// completed are independent (a task can be both active AND completed at
-// different points, or neither). Replaced with 3 independent counts.
-// performanceTarget and teamSize removed — no corresponding data anywhere
-// else in the schema; add them back only if target-setting and headcount
-// tracking are being intentionally built as real features.
-
-
-// UPDATE StandardTask — add isActive, needed by the fixed standard-tasks-table.tsx.
-// Also update toStandardTask() to pass task.active through as isActive.
-

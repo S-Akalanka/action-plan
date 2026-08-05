@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WeekSelector } from "@/components/ui/week-selector";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
@@ -17,12 +18,28 @@ const CATEGORY_MAP: Record<string, CategoryKey> = {
   PEOPLE: "People",
 };
 
+function getMonday(d: Date) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function toDateParam(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
 export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
   const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
+  const isCurrentWeek = selectedWeek.getTime() === getMonday(new Date()).getTime();
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
 
   useEffect(() => {
@@ -35,66 +52,52 @@ export default function MyPlanPage() {
     }
 
     setLoading(true);
+    const weekParam = toDateParam(selectedWeek);
+
+    const mapMerged = (tasksData: any[], instancesData: any[]) =>
+      tasksData.map((task: any) => {
+        const instance = instancesData.find((i: any) => i.taskId === task.id);
+        return {
+          id: task.id,
+          instanceId: instance?.id,
+          teamId: task.teamId,
+          desc: task.description,
+          details: task.details ?? "",
+          category: CATEGORY_MAP[task.category] ?? task.category,
+          kpi: task.kpiReference ?? "",
+          frequency: task.frequency,
+          done: instance?.status === "COMPLETE",
+          active: instance?.isActivated ?? false,
+          completedAt: instance?.completedAt ?? undefined,
+          comment: instance?.comment ?? null,
+        };
+      });
 
     if (selectedTeamId) {
       Promise.all([
         fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
-        fetch(`/api/teams/${selectedTeamId}/instances`).then((res) => res.json()),
+        fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`).then((res) => res.json()),
       ])
-        .then(([tasksData, instancesData]) => {
-          const merged: MyPlanTask[] = tasksData.map((task: any) => {
-            const instance = instancesData.find((i: any) => i.taskId === task.id);
-            return {
-              id: task.id,
-              teamId: task.teamId,
-              desc: task.description,
-              category: CATEGORY_MAP[task.category] ?? task.category,
-              kpi: task.kpiReference ?? "",
-              frequency: task.frequency,
-              done: instance?.status === "COMPLETE",
-              active: instance?.isActivated ?? false,
-              completedAt: instance?.completedAt ?? undefined,
-            };
-          });
-          setTasks(merged);
-        })
+        .then(([tasksData, instancesData]) => setTasks(mapMerged(tasksData, instancesData)))
         .catch((err) => console.error("Error loading tasks", err))
         .finally(() => setLoading(false));
     } else {
-      // selectedTeamId is null (Overview) - load tasks for all teams
       const fetchPromises = myTeams.map((team) =>
         Promise.all([
           fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
-          fetch(`/api/teams/${team.id}/instances`).then((res) => res.json()),
+          fetch(`/api/teams/${team.id}/instances?week=${weekParam}`).then((res) => res.json()),
         ]).then(([tasksData, instancesData]) => {
-          if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) {
-            return [];
-          }
-          return tasksData.map((task: any) => {
-            const instance = instancesData.find((i: any) => i.taskId === task.id);
-            return {
-              id: task.id,
-              teamId: task.teamId,
-              desc: task.description,
-              category: CATEGORY_MAP[task.category] ?? task.category,
-              kpi: task.kpiReference ?? "",
-              frequency: task.frequency,
-              done: instance?.status === "COMPLETE",
-              active: instance?.isActivated ?? false,
-              completedAt: instance?.completedAt ?? undefined,
-            };
-          });
+          if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
+          return mapMerged(tasksData, instancesData);
         })
       );
 
       Promise.all(fetchPromises)
-        .then((results) => {
-          setTasks(results.flat());
-        })
+        .then((results) => setTasks(results.flat()))
         .catch((err) => console.error("Error loading all tasks", err))
         .finally(() => setLoading(false));
     }
-  }, [selectedTeamId, myTeams, loadingTeams]);
+  }, [selectedTeamId, myTeams, loadingTeams, selectedWeek]);
 
   const overallPercent = useMemo(() => {
     if (tasks.length === 0) return 0;
@@ -116,13 +119,14 @@ export default function MyPlanPage() {
   );
 
   const toggle = (id: string) => {
+    if (!isCurrentWeek) return; // past weeks are read-only
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nextDone = !task.done;
 
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t)));
 
-    fetch(`/api/instances/${id}`, {
+    fetch(`/api/instances/${(task as any).instanceId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextDone ? "COMPLETE" : "INCOMPLETE" }),
@@ -140,25 +144,41 @@ export default function MyPlanPage() {
   };
 
   const toggleActive = (id: string) => {
+    if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nextActive = !task.active;
 
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t)));
 
-    fetch(`/api/instances/${id}`, {
+    fetch(`/api/instances/${(task as any).instanceId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActivated: nextActive }),
     });
   };
 
+  const saveComment = (id: string, comment: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, comment } : t)));
+    setEditingCommentId(null);
+
+    fetch(`/api/instances/${(task as any).instanceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    }).catch((err) => console.error("Failed to save comment", err));
+  };
+
   const deleteTask = (id: string) => {
+    if (!isCurrentWeek) return;
     setTasks((prev) => prev.filter((t) => t.id !== id));
     fetch(`/api/tasks/${id}`, { method: "DELETE" });
   };
 
-  const addTask = (data: { desc: string; category: CategoryKey; kpi: string }) => {
+  const addTask = (data: { desc: string; details: string; category: CategoryKey; kpi: string }) => {
     if (!selectedTeamId) return;
 
     fetch(`/api/teams/${selectedTeamId}/tasks`, {
@@ -167,6 +187,7 @@ export default function MyPlanPage() {
       body: JSON.stringify({
         category: data.category,
         description: data.desc,
+        details: data.details || null,
         kpiReference: data.kpi || null,
         frequency: "WEEKLY",
         source: "ADHOC",
@@ -178,14 +199,17 @@ export default function MyPlanPage() {
           ...prev,
           {
             id: created.id,
+            instanceId: created.firstInstanceId,
             teamId: selectedTeamId,
             desc: data.desc,
+            details: data.details,
             category: data.category,
             kpi: data.kpi,
             frequency: "Ad-hoc",
             done: false,
             active: false,
-          },
+            comment: null,
+          } as any,
         ]);
       });
 
@@ -214,25 +238,34 @@ export default function MyPlanPage() {
         <div>
           <h1 className="text-2xl font-bold">My Action Plan</h1>
           <p className="mt-1 text-sm text-[#5B6472]">
-            Week 42 · {selectedTeam ? selectedTeam.teamName : "Overview"}
+            {selectedTeam ? selectedTeam.teamName : "Overview"}
           </p>
         </div>
-        {selectedTeamId && (
-          <Button
-            onClick={() => setAdding((v) => !v)}
-            className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add task
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <WeekSelector weekStart={selectedWeek} onChange={setSelectedWeek} />
+          {selectedTeamId && isCurrentWeek && (
+            <Button
+              onClick={() => setAdding((v) => !v)}
+              className="gap-1.5 rounded-lg bg-[#16233F] px-4 hover:bg-[#0F1A30] text-white"
+            >
+              <Plus className="h-4 w-4" />
+              Add task
+            </Button>
+          )}
+        </div>
       </div>
+
+      {!isCurrentWeek && (
+        <div className="mb-6 rounded-md bg-[#F1F2F5] px-4 py-2 text-xs font-medium text-[#5B6472]">
+          Viewing a past week — read-only. Incomplete tasks can still be commented on.
+        </div>
+      )}
 
       <div className="mb-8">
         <SummaryStrip overallPercent={overallPercent} categoryStats={categoryStats} />
       </div>
 
-      {adding && (
+      {adding && isCurrentWeek && (
         <div className="mb-8">
           <AddAdHocTaskForm onSave={addTask} onCancel={() => setAdding(false)} />
         </div>
@@ -245,9 +278,14 @@ export default function MyPlanPage() {
             icon={cat.icon}
             label={cat.key}
             tasks={tasks.filter((t) => t.category === cat.key)}
+            readOnly={!isCurrentWeek}
             onToggle={toggle}
             onToggleActive={toggleActive}
             onDelete={deleteTask}
+            onEditComment={(id) => setEditingCommentId(id)}
+            editingCommentId={editingCommentId}
+            onSaveComment={saveComment}
+            onCancelComment={() => setEditingCommentId(null)}
           />
         ))}
       </div>

@@ -65,6 +65,10 @@ export async function POST(
 
     const { category, description, details, kpiReference, frequency, source } = body;
     
+    const weekStart = getCurrentWeekStart();
+    const endOfWeek = new Date(weekStart);
+    endOfWeek.setDate(endOfWeek.getDate() + 6); // Sunday of this week
+
     const task = await prisma.task.create({
       data: { 
         teamId, 
@@ -74,7 +78,8 @@ export async function POST(
         details: details ?? null,
         kpiReference: kpiReference ?? null, 
         frequency, 
-        source: source ?? "ADHOC" 
+        source: source ?? "ADHOC" ,
+        deadline: endOfWeek,
       },
     });
     
