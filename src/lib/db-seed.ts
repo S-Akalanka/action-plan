@@ -10,6 +10,44 @@ function mondayOf(weeksAgo: number): Date {
   return d;
 }
 
+function daysFromToday(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// deadline = the date the task's recursion stops (or, for ONCE tasks, the
+// single due date). Recurring tasks get a deadline well beyond the seeded
+// history window so they stay active; ONCE/ad-hoc tasks get a near-term
+// due date instead.
+function deadlineFor(frequency: "ONCE" | "WEEKLY" | "BI_WEEKLY" | "MONTHLY" | "QUARTERLY"): Date {
+  switch (frequency) {
+    case "ONCE":
+      return daysFromToday(3);
+    case "WEEKLY":
+      return daysFromToday(90);
+    case "BI_WEEKLY":
+      return daysFromToday(120);
+    case "MONTHLY":
+      return daysFromToday(180);
+    case "QUARTERLY":
+      return daysFromToday(365);
+  }
+}
+
+const OVERDUE_COMMENTS = [
+  "Blocked pending sign-off from another team.",
+  "Delayed due to competing priorities this week.",
+  "Data source was unavailable, following up.",
+  "Owner was out; picking back up next cycle.",
+  "Carried over — deprioritized for an urgent request.",
+];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export async function seedDatabase() {
   console.log("Resetting and seeding database with teams, users, memberships, and tasks...");
 
@@ -101,12 +139,7 @@ export async function seedDatabase() {
   for (const m of membershipData) {
     await prisma.membership.create({ data: m });
   }
-  // ADMIN and CEO bypass per-team Membership checks via canAccessTeam(),
-  // so userAdmin/userCeo don't strictly need rows for every team.
 
-  // 4. Standard Tasks — every team gets multiple tasks across all four
-  // categories (Finance, Customer, Process/Tech, People), plus a couple of
-  // ad-hoc examples per team, so every screen has plenty of real variation.
   const tasksData = [
     // BU01 — North America Retail
     { teamId: "bu01", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile weekly cash position", kpiReference: "Ledger Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -114,7 +147,7 @@ export async function seedDatabase() {
     { teamId: "bu01", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review top-10 customer health scores", kpiReference: "NPS", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu01", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit POS system uptime", kpiReference: "Uptime %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu01", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review store staffing levels", kpiReference: "Coverage %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
-    { teamId: "bu01", createdById: userBu01Lead.id, category: "CUSTOMER" as const, description: "Investigate flagged return spike at store #114", kpiReference: "Return Rate %", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "bu01", createdById: userBu01Lead.id, category: "CUSTOMER" as const, description: "Investigate flagged return spike at store #114", kpiReference: "Return Rate %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // BU02 — EMEA Wholesale
     { teamId: "bu02", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile wholesale invoices", kpiReference: "Invoice Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -122,7 +155,7 @@ export async function seedDatabase() {
     { teamId: "bu02", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review distributor contract renewals", kpiReference: "Renewal Rate %", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit warehouse inventory system", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review regional staffing plan", kpiReference: "Headcount Variance", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
-    { teamId: "bu02", createdById: userBu02Lead.id, category: "PROCESS_TECH" as const, description: "Patch customs clearance portal outage", kpiReference: "Uptime %", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "bu02", createdById: userBu02Lead.id, category: "PROCESS_TECH" as const, description: "Patch customs clearance portal outage", kpiReference: "Uptime %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // BU03 — APAC Retail
     { teamId: "bu03", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile regional FX exposure", kpiReference: "FX Variance %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -130,7 +163,7 @@ export async function seedDatabase() {
     { teamId: "bu03", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit regional POS integration", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "bu03", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review seasonal staffing plan", kpiReference: "Coverage %", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
     { teamId: "bu03", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review new-hire onboarding completion", kpiReference: "Onboarding Completion %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
-    { teamId: "bu03", createdById: userBu03Lead.id, category: "FINANCE" as const, description: "Chase overdue distributor payment", kpiReference: "DSO", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "bu03", createdById: userBu03Lead.id, category: "FINANCE" as const, description: "Chase overdue distributor payment", kpiReference: "DSO", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // BU04 — LATAM Distribution
     { teamId: "bu04", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile distributor settlements", kpiReference: "Settlement Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -138,7 +171,7 @@ export async function seedDatabase() {
     { teamId: "bu04", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit logistics tracking system", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "bu04", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Review customs documentation backlog", kpiReference: "Backlog Count", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu04", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review warehouse staffing levels", kpiReference: "Coverage %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
-    { teamId: "bu04", createdById: userBu04Lead.id, category: "CUSTOMER" as const, description: "Expedite delayed shipment for key account", kpiReference: "On-Time Delivery %", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "bu04", createdById: userBu04Lead.id, category: "CUSTOMER" as const, description: "Expedite delayed shipment for key account", kpiReference: "On-Time Delivery %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // Engineering
     { teamId: "engineering", createdById: userEngLead.id, category: "FINANCE" as const, description: "Review cloud infrastructure spend", kpiReference: "Budget Variance", frequency: "MONTHLY" as const, source: "STANDARD" as const },
@@ -146,7 +179,7 @@ export async function seedDatabase() {
     { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Deploy weekly staging build", kpiReference: "Uptime %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Review dependency vulnerability scan", kpiReference: "Critical CVEs Open", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "engineering", createdById: userEngLead.id, category: "PEOPLE" as const, description: "Conduct 1-on-1 development reviews", kpiReference: "Retention Rate", frequency: "WEEKLY" as const, source: "STANDARD" as const },
-    { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Hotfix production auth regression", kpiReference: "Incident Count", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Hotfix production auth regression", kpiReference: "Incident Count", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // HR & Admin
     { teamId: "hr-admin", createdById: userAdmin.id, category: "FINANCE" as const, description: "Verify payroll run accuracy", kpiReference: "Payroll Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -154,21 +187,21 @@ export async function seedDatabase() {
     { teamId: "hr-admin", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit HRIS data integrity", kpiReference: "Data Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "hr-admin", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Verify team timesheet submissions", kpiReference: "Payroll Compliance %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "hr-admin", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review open headcount requisitions", kpiReference: "Time to Fill", frequency: "MONTHLY" as const, source: "STANDARD" as const },
-    { teamId: "hr-admin", createdById: userFinanceLead.id, category: "FINANCE" as const, description: "Resolve benefits enrollment escalation", kpiReference: "Ticket Response Time", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "hr-admin", createdById: userFinanceLead.id, category: "FINANCE" as const, description: "Resolve benefits enrollment escalation", kpiReference: "Ticket Response Time", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // Finance
     { teamId: "finance", createdById: userFinanceLead.id, category: "FINANCE" as const, description: "Close weekly management accounts", kpiReference: "Close Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "finance", createdById: userFinanceLead.id, category: "CUSTOMER" as const, description: "Resolve billing disputes", kpiReference: "Dispute Resolution Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "finance", createdById: userFinanceLead.id, category: "PROCESS_TECH" as const, description: "Audit ERP reconciliation jobs", kpiReference: "Job Success Rate", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "finance", createdById: userFinanceLead.id, category: "PEOPLE" as const, description: "Review finance team workload", kpiReference: "Overtime Hours", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
-    { teamId: "finance", createdById: userEngLead.id, category: "FINANCE" as const, description: "Investigate cloud invoice discrepancy", kpiReference: "Budget Variance", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "finance", createdById: userEngLead.id, category: "FINANCE" as const, description: "Investigate cloud invoice discrepancy", kpiReference: "Budget Variance", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // Sales & Marketing
     { teamId: "sales-marketing", createdById: userSalesLead.id, category: "FINANCE" as const, description: "Reconcile campaign spend vs. budget", kpiReference: "Budget Variance", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "sales-marketing", createdById: userSalesLead.id, category: "CUSTOMER" as const, description: "Follow up with qualified leads", kpiReference: "Lead Response Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "sales-marketing", createdById: userSalesLead.id, category: "PROCESS_TECH" as const, description: "Audit CRM data quality", kpiReference: "Data Completeness %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "sales-marketing", createdById: userSalesLead.id, category: "PEOPLE" as const, description: "Review quarterly sales team targets", kpiReference: "Quota Attainment %", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
-    { teamId: "sales-marketing", createdById: userBu01Lead.id, category: "CUSTOMER" as const, description: "Prep win-back offer for churned key account", kpiReference: "Lead Response Time", frequency: "WEEKLY" as const, source: "ADHOC" as const },
+    { teamId: "sales-marketing", createdById: userBu01Lead.id, category: "CUSTOMER" as const, description: "Prep win-back offer for churned key account", kpiReference: "Lead Response Time", frequency: "ONCE" as const, source: "ADHOC" as const },
   ];
 
   const weekStarts = WEEK_OFFSETS_OLDEST_FIRST.map((weeksAgo) => ({ weeksAgo, date: mondayOf(weeksAgo) }));
@@ -186,6 +219,7 @@ export async function seedDatabase() {
         kpiReference: task.kpiReference,
         frequency: task.frequency,
         source: task.source,
+        deadline: deadlineFor(task.frequency),
       },
     });
 
@@ -227,12 +261,17 @@ export async function seedDatabase() {
       const status = rand < completeThreshold ? "COMPLETE" : "INCOMPLETE";
       const isActivated = status === "INCOMPLETE" && rand > 0.3;
 
+      // A past week's instance that's still INCOMPLETE has missed its
+      // window — a comment explaining why is required in that case.
+      const isExpiredIncomplete = status === "INCOMPLETE" && !isCurrentWeek;
+
       await prisma.taskInstance.create({
         data: {
           taskId: created.id,
           weekStartDate: date,
           status,
           isActivated,
+          comment: isExpiredIncomplete ? pick(OVERDUE_COMMENTS) : null,
           completedAt: status === "COMPLETE" ? date : null,
           completedById: status === "COMPLETE" ? task.createdById : null,
         },

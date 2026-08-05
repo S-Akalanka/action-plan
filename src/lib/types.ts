@@ -77,7 +77,7 @@ export interface ActionTask {
 
 export type Frequency = "Weekly" | "Monthly" | "Quarterly";
 export type MyPlanFrequency = "Weekly" | "Monthly" | "Quarterly" | "Ad-hoc";
-export type StandardTaskFrequency = "Weekly" | "Bi-weekly" | "Monthly" | "Quarterly";
+export type StandardTaskFrequency = "Once" | "Weekly" | "Bi-weekly" | "Monthly" | "Quarterly";
 
 function toCoreFrequency(frequency: TaskFrequency): Frequency {
   if (frequency === "Bi-weekly" || frequency === "Ad-hoc") return "Weekly";

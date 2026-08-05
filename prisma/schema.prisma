@@ -97,8 +97,8 @@ model Task {
   kpiReference  String?
   frequency     Frequency
   source        Source    @default(STANDARD)
-  comment       String?
   isActive      Boolean   @default(true)
+  deadline      DateTime @db.Date
 
   instances     TaskInstance[]
   createdAt     DateTime  @default(now())
@@ -113,6 +113,7 @@ model TaskInstance {
   task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   weekStartDate   DateTime  @db.Date
+  comment         String?
   isActivated     Boolean   @default(false)
   status          Status    @default(INCOMPLETE)
   completedAt     DateTime?

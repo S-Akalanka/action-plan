@@ -2,10 +2,9 @@
 // GET  /api/admin/teams/[teamId]/tasks
 // POST /api/admin/teams/[teamId]/tasks
 //
-// GET now also supports teamId = "all" for the Overview view — returns
-// every team's standard tasks with their assigned team name attached,
-// so Manage Tasks can show an "Assigned Team" column instead of the
-// removed Active/Inactive toggle.
+// deadline is now required on every Task — the last week this task is due
+// or recurs until (see lib/week.ts's isTaskDueForWeek). comment lives on
+// TaskInstance now, not Task — removed from here.
 
 import { NextResponse } from "next/server";
 import { Category, Frequency as PrismaFrequency } from "@prisma/client";
@@ -22,6 +21,7 @@ const CATEGORY_TO_ENUM: Record<string, Category> = {
 };
 
 const FREQUENCY_TO_ENUM: Record<string, PrismaFrequency> = {
+  Once: "ONCE",
   Weekly: "WEEKLY",
   "Bi-weekly": "BI_WEEKLY",
   Monthly: "MONTHLY",
@@ -37,9 +37,7 @@ export async function GET(
   const tasks = await prisma.task.findMany({
     where: teamId === "all" ? { source: "STANDARD" } : { teamId, source: "STANDARD" },
     orderBy: { createdAt: "desc" },
-    include: {
-      team: { select: { teamName: true } },
-    },
+    include: { team: { select: { teamName: true } } },
   });
 
   const withTeamName = tasks.map((t) => ({
@@ -68,7 +66,11 @@ export async function POST(
   }
 
   const body = await req.json();
-  const { category, description, kpiReference, frequency } = body;
+  const { category, description, kpiReference, frequency, deadline } = body;
+
+  if (!deadline) {
+    return NextResponse.json({ error: "deadline is required" }, { status: 400 });
+  }
 
   const task = await prisma.task.create({
     data: {
@@ -79,6 +81,7 @@ export async function POST(
       kpiReference: kpiReference ?? null,
       frequency: FREQUENCY_TO_ENUM[frequency] ?? (frequency as PrismaFrequency),
       source: "STANDARD",
+      deadline: new Date(deadline),
     },
     include: { team: { select: { teamName: true } } },
   });

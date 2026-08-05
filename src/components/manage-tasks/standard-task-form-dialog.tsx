@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -30,7 +29,7 @@ const EMPTY_FORM = {
   category: CATEGORIES[0].key as CategoryKey,
   kpi: "",
   frequency: "Weekly" as StandardTaskFrequency,
-  comment: "",
+  deadline: "",
 };
 
 export function StandardTaskFormDialog({
@@ -57,7 +56,7 @@ export function StandardTaskFormDialog({
               category: initialTask.category,
               kpi: initialTask.kpi,
               frequency: initialTask.frequency,
-              comment: (initialTask as any).comment ?? "",
+              deadline: (initialTask as any).deadline?.split("T")[0] ?? "",
             }
           : EMPTY_FORM
       );
@@ -65,7 +64,7 @@ export function StandardTaskFormDialog({
   }, [open, initialTask]);
 
   const handleSave = () => {
-    if (!form.description.trim()) return;
+    if (!form.description.trim() || !form.deadline) return;
     onSave(
       {
         description: form.description.trim(),
@@ -73,7 +72,7 @@ export function StandardTaskFormDialog({
         category: form.category,
         kpi: form.kpi.trim() || "—",
         frequency: form.frequency,
-        comment: form.comment.trim() || null,
+        deadline: form.deadline,
       } as any,
       initialTask?.id
     );
@@ -169,14 +168,18 @@ export function StandardTaskFormDialog({
 
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              Comment
+              Deadline <span className="text-red-500">*</span>
             </Label>
-            <Textarea
-              value={form.comment}
-              onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
-              placeholder="Optional note about this task — editable anytime"
-              rows={3}
+            <Input
+              type="date"
+              value={form.deadline}
+              onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
             />
+            <p className="mt-1 text-xs text-[#9AA3B2]">
+              {form.frequency === "Once"
+                ? "This task must be completed by this date."
+                : "This task stops recurring after this date."}
+            </p>
           </div>
         </div>
 
@@ -184,7 +187,11 @@ export function StandardTaskFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-[#16233F] hover:bg-[#0F1A30] text-white">
+          <Button
+            onClick={handleSave}
+            disabled={!form.description.trim() || !form.deadline}
+            className="bg-[#16233F] hover:bg-[#0F1A30] text-white disabled:opacity-50"
+          >
             {isEditing ? "Save Changes" : "Add Task"}
           </Button>
         </DialogFooter>
