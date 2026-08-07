@@ -63,6 +63,7 @@ export default function MyPlanPage() {
           teamId: task.teamId,
           desc: task.description,
           details: task.details ?? "",
+          deadline: task.deadline, // ← passed through so the row can check it directly
           category: CATEGORY_MAP[task.category] ?? task.category,
           kpi: task.kpiReference ?? "",
           frequency: task.frequency,
@@ -119,7 +120,7 @@ export default function MyPlanPage() {
   );
 
   const toggle = (id: string) => {
-    if (!isCurrentWeek) return; // past weeks are read-only
+    if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nextDone = !task.done;
@@ -203,6 +204,7 @@ export default function MyPlanPage() {
             teamId: selectedTeamId,
             desc: data.desc,
             details: data.details,
+            deadline: created.deadline,
             category: data.category,
             kpi: data.kpi,
             frequency: "Ad-hoc",
@@ -257,7 +259,7 @@ export default function MyPlanPage() {
 
       {!isCurrentWeek && (
         <div className="mb-6 rounded-md bg-[#F1F2F5] px-4 py-2 text-xs font-medium text-[#5B6472]">
-          Viewing a past week — read-only. Incomplete tasks can still be commented on.
+          Viewing a past week — read-only.
         </div>
       )}
 

@@ -39,13 +39,16 @@ export function MyPlanTaskRow({
 }) {
   const comment = (task as any).comment as string | null;
   const details = (task as any).details as string | undefined;
+  const deadline = (task as any).deadline as string | undefined;
   const isEditingComment = editingCommentId === task.id;
   const [draft, setDraft] = useState(comment ?? "");
 
-  // Comment only makes sense on an incomplete task, and per the design,
-  // only actually needs to be visible/editable once looking at a past
-  // week (readOnly) — the point is explaining why something WASN'T done.
-  const canComment = !task.done && readOnly;
+  // Comment unlocks once the task's actual deadline has passed and it's
+  // still incomplete — not tied to "past week" anymore, since for
+  // MONTHLY/QUARTERLY tasks those aren't the same moment. A task can roll
+  // into a new "current week" instance before its real deadline arrives.
+  const isPastDeadline = deadline ? new Date(deadline) < new Date() : false;
+  const canComment = !task.done && isPastDeadline;
 
   const startEditing = () => {
     setDraft(comment ?? "");
@@ -117,7 +120,7 @@ export function MyPlanTaskRow({
             <button
               className={cn(
                 "text-[#9AA3B2] hover:text-[#16233F]",
-                comment && "text-[#B45309]"
+                comment && "text-red-600"
               )}
               aria-label="Add or edit comment"
               onClick={startEditing}
@@ -175,8 +178,8 @@ export function MyPlanTaskRow({
           <button
             onClick={canComment ? startEditing : undefined}
             className={cn(
-              "ml-9 flex items-start gap-1.5 text-left text-xs text-[#B8BFCB]",
-              canComment && "hover:text-[#9AA3B2]"
+              "ml-9 flex items-start gap-1.5 text-left text-xs text-red-600",
+              canComment && "hover:text-red-700"
             )}
           >
             <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
