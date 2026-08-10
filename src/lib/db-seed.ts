@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 
 // How many weeks of history to generate, oldest first. 0 = current week.
 const WEEK_OFFSETS_OLDEST_FIRST = [4, 3, 2, 1, 0];
+const MAX_WEEKS_AGO = WEEK_OFFSETS_OLDEST_FIRST[0];
 
 function mondayOf(weeksAgo: number): Date {
   const d = new Date();
@@ -15,6 +16,12 @@ function daysFromToday(days: number): Date {
   d.setDate(d.getDate() + days);
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+// Week 1 = oldest seeded week, Week 5 = current week — matches
+// WEEK_OFFSETS_OLDEST_FIRST so it's easy to eyeball in the UI.
+function weekNumberFor(weeksAgo: number): number {
+  return MAX_WEEKS_AGO - weeksAgo + 1;
 }
 
 // deadline = the date the task's recursion stops (or, for ONCE tasks, the
@@ -44,6 +51,36 @@ const OVERDUE_COMMENTS = [
   "Carried over — deprioritized for an urgent request.",
 ];
 
+const CARRYOVER_COMMENTS = [
+  "Still catching up on last week's item before starting this week's.",
+  "Picking this up now — last week's instance slipped.",
+  "Continuing from last week; wasn't finished in time.",
+];
+
+const LATE_COMPLETION_COMMENTS = [
+  "Finished this, but past the deadline — resourcing was tight this cycle.",
+  "Completed late; waiting on a dependency that came through after the deadline.",
+  "Done now. Missed the deadline due to an unplanned outage.",
+];
+
+// Hardcoded status per week — no randomness, so every seed run gives the
+// same guaranteed mix: complete / in-progress / never-started across past
+// weeks, and the current week is ALWAYS incomplete (matches BRD Journey 6:
+// a freshly reset week starts unmarked, nothing can be complete yet).
+//   Week 1 (weeksAgo 4): COMPLETE
+//   Week 2 (weeksAgo 3): IN_PROGRESS (activated, not finished)
+//   Week 3 (weeksAgo 2): COMPLETE
+//   Week 4 (weeksAgo 1): INCOMPLETE, never started -> triggers a carryover
+//                        comment on the current week's instance
+//   Week 5 (weeksAgo 0, current): INCOMPLETE, never started
+const STATUS_BY_WEEKS_AGO: Record<number, "COMPLETE" | "IN_PROGRESS" | "INCOMPLETE"> = {
+  4: "COMPLETE",
+  3: "IN_PROGRESS",
+  2: "COMPLETE",
+  1: "INCOMPLETE",
+  0: "INCOMPLETE",
+};
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -52,6 +89,7 @@ export async function seedDatabase() {
   console.log("Resetting and seeding database with teams, users, memberships, and tasks...");
 
   // 0. Clear existing data — child tables first to respect FK constraints.
+  await prisma.comment.deleteMany({});
   await prisma.taskInstance.deleteMany({});
   await prisma.task.deleteMany({});
   await prisma.membership.deleteMany({});
@@ -139,7 +177,14 @@ export async function seedDatabase() {
   for (const m of membershipData) {
     await prisma.membership.create({ data: m });
   }
+  // ADMIN and CEO bypass per-team Membership checks via canAccessTeam(),
+  // so userAdmin/userCeo don't strictly need rows for every team.
 
+  // 4. Standard Tasks — every team gets multiple tasks across all four
+  // categories (Finance, Customer, Process/Tech, People), plus one ad-hoc
+  // example per team. A handful of WEEKLY/MONTHLY/QUARTERLY tasks are
+  // flagged pastDeadline so at least a few completions demonstrably land
+  // after their Task.deadline, with an excuse comment attached.
   const tasksData = [
     // BU01 — North America Retail
     { teamId: "bu01", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile weekly cash position", kpiReference: "Ledger Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -153,7 +198,7 @@ export async function seedDatabase() {
     { teamId: "bu02", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile wholesale invoices", kpiReference: "Invoice Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Follow up with distributor accounts", kpiReference: "Response Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review distributor contract renewals", kpiReference: "Renewal Rate %", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
-    { teamId: "bu02", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit warehouse inventory system", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
+    { teamId: "bu02", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit warehouse inventory system", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const, pastDeadline: true },
     { teamId: "bu02", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review regional staffing plan", kpiReference: "Headcount Variance", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userBu02Lead.id, category: "PROCESS_TECH" as const, description: "Patch customs clearance portal outage", kpiReference: "Uptime %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
@@ -176,7 +221,7 @@ export async function seedDatabase() {
     // Engineering
     { teamId: "engineering", createdById: userEngLead.id, category: "FINANCE" as const, description: "Review cloud infrastructure spend", kpiReference: "Budget Variance", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "engineering", createdById: userEngLead.id, category: "CUSTOMER" as const, description: "Triage customer-reported bugs", kpiReference: "Bug Resolution SLA", frequency: "WEEKLY" as const, source: "STANDARD" as const },
-    { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Deploy weekly staging build", kpiReference: "Uptime %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
+    { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Deploy weekly staging build", kpiReference: "Uptime %", frequency: "WEEKLY" as const, source: "STANDARD" as const, pastDeadline: true },
     { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Review dependency vulnerability scan", kpiReference: "Critical CVEs Open", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "engineering", createdById: userEngLead.id, category: "PEOPLE" as const, description: "Conduct 1-on-1 development reviews", kpiReference: "Retention Rate", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "engineering", createdById: userEngLead.id, category: "PROCESS_TECH" as const, description: "Hotfix production auth regression", kpiReference: "Incident Count", frequency: "ONCE" as const, source: "ADHOC" as const },
@@ -193,7 +238,7 @@ export async function seedDatabase() {
     { teamId: "finance", createdById: userFinanceLead.id, category: "FINANCE" as const, description: "Close weekly management accounts", kpiReference: "Close Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "finance", createdById: userFinanceLead.id, category: "CUSTOMER" as const, description: "Resolve billing disputes", kpiReference: "Dispute Resolution Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "finance", createdById: userFinanceLead.id, category: "PROCESS_TECH" as const, description: "Audit ERP reconciliation jobs", kpiReference: "Job Success Rate", frequency: "MONTHLY" as const, source: "STANDARD" as const },
-    { teamId: "finance", createdById: userFinanceLead.id, category: "PEOPLE" as const, description: "Review finance team workload", kpiReference: "Overtime Hours", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
+    { teamId: "finance", createdById: userFinanceLead.id, category: "PEOPLE" as const, description: "Review finance team workload", kpiReference: "Overtime Hours", frequency: "QUARTERLY" as const, source: "STANDARD" as const, pastDeadline: true },
     { teamId: "finance", createdById: userEngLead.id, category: "FINANCE" as const, description: "Investigate cloud invoice discrepancy", kpiReference: "Budget Variance", frequency: "ONCE" as const, source: "ADHOC" as const },
 
     // Sales & Marketing
@@ -208,36 +253,49 @@ export async function seedDatabase() {
   const currentWeekStart = weekStarts[weekStarts.length - 1].date;
 
   let instanceCount = 0;
+  let commentCount = 0;
 
   for (const task of tasksData) {
+    const isPastDeadline = "pastDeadline" in task && task.pastDeadline === true;
+    const deadline = isPastDeadline ? daysFromToday(-10) : deadlineFor(task.frequency);
+
     const created = await prisma.task.create({
       data: {
         teamId: task.teamId,
         createdById: task.createdById,
         category: task.category,
         description: task.description,
+        details: isPastDeadline
+          ? `Recurs ${task.frequency}; deadline intentionally set in the past to demo late-completion handling. Seeded across Week 1–Week ${weekNumberFor(0)} (oldest→current).`
+          : `Recurs ${task.frequency}; seeded across Week 1–Week ${weekNumberFor(0)} (oldest→current).`,
         kpiReference: task.kpiReference,
         frequency: task.frequency,
         source: task.source,
-        deadline: deadlineFor(task.frequency),
+        deadline,
       },
     });
 
     // Ad-hoc tasks only ever existed in the current week (they're not
-    // carried forward on reset — see BRD User Journey 6).
+    // carried forward on reset — see BRD User Journey 6). Current week is
+    // always INCOMPLETE, same rule as everything else this week.
     if (task.source === "ADHOC") {
-      const status = Math.random() < 0.6 ? "COMPLETE" : "INCOMPLETE";
+      const weekNum = weekNumberFor(0);
+      const comments = [
+        { authorId: userAdmin.id, body: `Week ${weekNum} of ${weekNumberFor(0)} (${currentWeekStart.toDateString()}).` },
+      ];
       await prisma.taskInstance.create({
         data: {
           taskId: created.id,
           weekStartDate: currentWeekStart,
-          status,
-          isActivated: status === "INCOMPLETE",
-          completedAt: status === "COMPLETE" ? new Date() : null,
-          completedById: status === "COMPLETE" ? task.createdById : null,
+          status: "INCOMPLETE",
+          isActivated: true,
+          completedAt: null,
+          completedById: null,
+          comments: { create: comments },
         },
       });
       instanceCount++;
+      commentCount += comments.length;
       continue;
     }
 
@@ -245,25 +303,42 @@ export async function seedDatabase() {
     // WEEKLY -> every week, MONTHLY -> every 4th week, QUARTERLY -> oldest
     // week only (out of a 5-week window, that's the closest stand-in for
     // "once a quarter").
+    let previousWeekAgo1Status: "COMPLETE" | "INCOMPLETE" | null = null;
+
     for (const { weeksAgo, date } of weekStarts) {
       const due =
         task.frequency === "WEEKLY" ||
         (task.frequency === "MONTHLY" && weeksAgo % 4 === 0) ||
-        (task.frequency === "QUARTERLY" && weeksAgo === WEEK_OFFSETS_OLDEST_FIRST[0]);
+        (task.frequency === "QUARTERLY" && weeksAgo === MAX_WEEKS_AGO);
 
       if (!due) continue;
 
-      // Older weeks skew more complete (work caught up over time); current
-      // week skews toward in-progress, so the dashboard shows real variation.
       const isCurrentWeek = weeksAgo === 0;
-      const completeThreshold = isCurrentWeek ? 0.45 : 0.85;
-      const rand = Math.random();
-      const status = rand < completeThreshold ? "COMPLETE" : "INCOMPLETE";
-      const isActivated = status === "INCOMPLETE" && rand > 0.3;
+      const weekNum = weekNumberFor(weeksAgo);
 
-      // A past week's instance that's still INCOMPLETE has missed its
-      // window — a comment explaining why is required in that case.
-      const isExpiredIncomplete = status === "INCOMPLETE" && !isCurrentWeek;
+      const weekPattern = STATUS_BY_WEEKS_AGO[weeksAgo] ?? "INCOMPLETE";
+      const status: "COMPLETE" | "INCOMPLETE" = weekPattern === "COMPLETE" ? "COMPLETE" : "INCOMPLETE";
+      const isActivated = weekPattern === "IN_PROGRESS";
+
+      const comments: { authorId: string; body: string }[] = [
+        { authorId: userAdmin.id, body: `Week ${weekNum} of ${weekNumberFor(0)} (${date.toDateString()}).` },
+      ];
+
+      // Past week still INCOMPLETE has missed its window — needs an excuse.
+      if (status === "INCOMPLETE" && !isCurrentWeek) {
+        comments.push({ authorId: task.createdById, body: pick(OVERDUE_COMMENTS) });
+      }
+
+      // Last week (weeksAgo === 1) was INCOMPLETE -> this week's instance
+      // (weeksAgo === 0) gets a carryover note explaining the backlog.
+      if (isCurrentWeek && previousWeekAgo1Status === "INCOMPLETE") {
+        comments.push({ authorId: task.createdById, body: pick(CARRYOVER_COMMENTS) });
+      }
+
+      // Completed, but this task's deadline has already passed -> excuse.
+      if (status === "COMPLETE" && isPastDeadline) {
+        comments.push({ authorId: task.createdById, body: pick(LATE_COMPLETION_COMMENTS) });
+      }
 
       await prisma.taskInstance.create({
         data: {
@@ -271,16 +346,19 @@ export async function seedDatabase() {
           weekStartDate: date,
           status,
           isActivated,
-          comment: isExpiredIncomplete ? pick(OVERDUE_COMMENTS) : null,
           completedAt: status === "COMPLETE" ? date : null,
           completedById: status === "COMPLETE" ? task.createdById : null,
+          comments: { create: comments },
         },
       });
       instanceCount++;
+      commentCount += comments.length;
+
+      if (weeksAgo === 1) previousWeekAgo1Status = status;
     }
   }
 
   console.log(
-    `Seeded ${teams.length} teams, 10 users, ${membershipData.length} memberships, ${tasksData.length} tasks, ${instanceCount} task instances across ${weekStarts.length} weeks.`
+    `Seeded ${teams.length} teams, 10 users, ${membershipData.length} memberships, ${tasksData.length} tasks, ${instanceCount} task instances, ${commentCount} comments across ${weekStarts.length} weeks.`
   );
 }

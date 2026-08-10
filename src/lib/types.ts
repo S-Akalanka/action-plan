@@ -289,4 +289,10 @@ export interface MyPlanTask {
   active: boolean;
   /** Timestamp shown once a task is marked done, e.g. "Mon 09:14" */
   completedAt?: string;
+  comments?: {
+    id: string;
+    body: string;
+    authorName: string;
+    createdAt: string;
+  }[];
 }
