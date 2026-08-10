@@ -10,10 +10,7 @@ export function TaskGroup({
   onToggle,
   onToggleActive,
   onDelete,
-  onEditComment,
-  editingCommentId,
-  onSaveComment,
-  onCancelComment,
+  onAddComment,
 }: {
   icon: LucideIcon;
   label: string;
@@ -22,10 +19,7 @@ export function TaskGroup({
   onToggle: (id: string) => void;
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
-  onEditComment: (id: string) => void;
-  editingCommentId: string | null;
-  onSaveComment: (id: string, comment: string) => void;
-  onCancelComment: () => void;
+  onAddComment: (id: string, body: string) => void;
 }) {
   if (tasks.length === 0) return null;
   const doneCount = tasks.filter((t) => t.done).length;
@@ -50,10 +44,7 @@ export function TaskGroup({
             onToggle={() => onToggle(task.id)}
             onToggleActive={() => onToggleActive(task.id)}
             onDelete={() => onDelete(task.id)}
-            onEditComment={onEditComment}
-            editingCommentId={editingCommentId}
-            onSaveComment={onSaveComment}
-            onCancelComment={onCancelComment}
+            onAddComment={onAddComment}
           />
         ))}
       </ul>

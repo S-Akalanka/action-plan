@@ -35,7 +35,6 @@ export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
   const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
@@ -54,32 +53,42 @@ export default function MyPlanPage() {
     setLoading(true);
     const weekParam = toDateParam(selectedWeek);
 
-    const mapMerged = (tasksData: any[], instancesData: any[]) =>
-      tasksData.map((task: any) => {
-        const instance = instancesData.find((i: any) => i.taskId === task.id);
-        return {
-          id: task.id,
-          instanceId: instance?.id,
-          teamId: task.teamId,
-          desc: task.description,
-          details: task.details ?? "",
-          deadline: task.deadline, // ← passed through so the row can check it directly
-          category: CATEGORY_MAP[task.category] ?? task.category,
-          kpi: task.kpiReference ?? "",
-          frequency: task.frequency,
-          done: instance?.status === "COMPLETE",
-          active: instance?.isActivated ?? false,
-          completedAt: instance?.completedAt ?? undefined,
-          comment: instance?.comment ?? null,
-        };
-      });
+    const mapMerged = async (tasksData: any[], instancesData: any[]) => {
+      return Promise.all(
+        tasksData.map(async (task: any) => {
+          const instance = instancesData.find((i: any) => i.taskId === task.id);
+          let comments: any[] = [];
+          if (instance?.id) {
+            comments = await fetch(`/api/instances/${instance.id}/comments`).then((r) => r.json());
+          }
+          return {
+            id: task.id,
+            instanceId: instance?.id,
+            teamId: task.teamId,
+            desc: task.description,
+            details: task.details ?? "",
+            deadline: task.deadline,
+            category: CATEGORY_MAP[task.category] ?? task.category,
+            kpi: task.kpiReference ?? "",
+            frequency: task.frequency,
+            done: instance?.status === "COMPLETE",
+            active: instance?.isActivated ?? false,
+            completedAt: instance?.completedAt ?? undefined,
+            comments,
+          };
+        })
+      );
+    };
 
     if (selectedTeamId) {
       Promise.all([
         fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
         fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`).then((res) => res.json()),
       ])
-        .then(([tasksData, instancesData]) => setTasks(mapMerged(tasksData, instancesData)))
+        .then(async ([tasksData, instancesData]) => {
+          const merged = await mapMerged(tasksData, instancesData); // ← await added
+          setTasks(merged);
+        })
         .catch((err) => console.error("Error loading tasks", err))
         .finally(() => setLoading(false));
     } else {
@@ -87,9 +96,9 @@ export default function MyPlanPage() {
         Promise.all([
           fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
           fetch(`/api/teams/${team.id}/instances?week=${weekParam}`).then((res) => res.json()),
-        ]).then(([tasksData, instancesData]) => {
+        ]).then(async ([tasksData, instancesData]) => {
           if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
-          return mapMerged(tasksData, instancesData);
+          return await mapMerged(tasksData, instancesData); // ← await added
         })
       );
 
@@ -159,18 +168,27 @@ export default function MyPlanPage() {
     });
   };
 
-  const saveComment = (id: string, comment: string) => {
+  // Renamed from saveComment — matches TaskGroup/task-row's single onAddComment prop.
+  const addComment = (id: string, commentBody: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
 
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, comment } : t)));
-    setEditingCommentId(null);
-
-    fetch(`/api/instances/${(task as any).instanceId}`, {
-      method: "PATCH",
+    fetch(`/api/instances/${(task as any).instanceId}/comments`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment }),
-    }).catch((err) => console.error("Failed to save comment", err));
+      body: JSON.stringify({ body: commentBody }),
+    })
+      .then((res) => res.json())
+      .then((newComment) => {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, comments: [newComment, ...((t as any).comments ?? [])] }
+              : t
+          )
+        );
+      })
+      .catch((err) => console.error("Failed to save comment", err));
   };
 
   const deleteTask = (id: string) => {
@@ -210,7 +228,7 @@ export default function MyPlanPage() {
             frequency: "Ad-hoc",
             done: false,
             active: false,
-            comment: null,
+            comments: [],
           } as any,
         ]);
       });
@@ -284,10 +302,7 @@ export default function MyPlanPage() {
             onToggle={toggle}
             onToggleActive={toggleActive}
             onDelete={deleteTask}
-            onEditComment={(id) => setEditingCommentId(id)}
-            editingCommentId={editingCommentId}
-            onSaveComment={saveComment}
-            onCancelComment={() => setEditingCommentId(null)}
+            onAddComment={addComment}
           />
         ))}
       </div>
