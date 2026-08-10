@@ -6,16 +6,26 @@ export function TaskGroup({
   icon: Icon,
   label,
   tasks,
+  readOnly,
   onToggle,
   onToggleActive,
   onDelete,
+  onEditComment,
+  editingCommentId,
+  onSaveComment,
+  onCancelComment,
 }: {
   icon: LucideIcon;
   label: string;
   tasks: MyPlanTask[];
+  readOnly?: boolean;
   onToggle: (id: string) => void;
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
+  onEditComment: (id: string) => void;
+  editingCommentId: string | null;
+  onSaveComment: (id: string, comment: string) => void;
+  onCancelComment: () => void;
 }) {
   if (tasks.length === 0) return null;
   const doneCount = tasks.filter((t) => t.done).length;
@@ -32,17 +42,20 @@ export function TaskGroup({
         </span>
       </header>
       <ul>
-        {tasks.map((task) => {
-          return (
-            <MyPlanTaskRow
-              key={task.id}
-              task={task}
-              onToggle={() => onToggle(task.id)}
-              onToggleActive={() => onToggleActive(task.id)}
-              onDelete={() => onDelete(task.id)}
-            />
-          );
-        })}
+        {tasks.map((task) => (
+          <MyPlanTaskRow
+            key={task.id}
+            task={task}
+            readOnly={readOnly}
+            onToggle={() => onToggle(task.id)}
+            onToggleActive={() => onToggleActive(task.id)}
+            onDelete={() => onDelete(task.id)}
+            onEditComment={onEditComment}
+            editingCommentId={editingCommentId}
+            onSaveComment={onSaveComment}
+            onCancelComment={onCancelComment}
+          />
+        ))}
       </ul>
     </section>
   );
