@@ -63,23 +63,36 @@ const LATE_COMPLETION_COMMENTS = [
   "Done now. Missed the deadline due to an unplanned outage.",
 ];
 
-// Hardcoded status per week — no randomness, so every seed run gives the
-// same guaranteed mix: complete / in-progress / never-started across past
-// weeks, and the current week is ALWAYS incomplete (matches BRD Journey 6:
-// a freshly reset week starts unmarked, nothing can be complete yet).
-//   Week 1 (weeksAgo 4): COMPLETE
-//   Week 2 (weeksAgo 3): IN_PROGRESS (activated, not finished)
-//   Week 3 (weeksAgo 2): COMPLETE
-//   Week 4 (weeksAgo 1): INCOMPLETE, never started -> triggers a carryover
-//                        comment on the current week's instance
-//   Week 5 (weeksAgo 0, current): INCOMPLETE, never started
-const STATUS_BY_WEEKS_AGO: Record<number, "COMPLETE" | "IN_PROGRESS" | "INCOMPLETE"> = {
+// Hardcoded status per task, rotating across a few profiles — no randomness,
+// so every seed run is identical, but not every task looks the same:
+//  - Profile 0: Week 4 (weeksAgo 1) INCOMPLETE -> triggers a carryover
+//    comment on the current week's instance.
+//  - Profile 1: Week 4 COMPLETE -> no carryover, current week starts clean.
+//  - Profile 2: different early-week mix, Week 4 INCOMPLETE.
+// Current week (weeksAgo 0) is always INCOMPLETE when an instance exists at
+// all (BRD Journey 6: a freshly reset week starts unmarked) — but see
+// SKIP_CURRENT_WEEK_EVERY_NTH below: some tasks get no current-week instance
+// at all, to validate the "not yet generated" state.
+type WeekStatus = "COMPLETE" | "IN_PROGRESS" | "INCOMPLETE";
+const WEEK_PROFILES: Record<number, WeekStatus>[] = [
+  { 4: "COMPLETE", 3: "IN_PROGRESS", 2: "COMPLETE", 1: "INCOMPLETE", 0: "INCOMPLETE" },
+  { 4: "COMPLETE", 3: "COMPLETE", 2: "IN_PROGRESS", 1: "COMPLETE", 0: "INCOMPLETE" },
+  { 4: "IN_PROGRESS", 3: "COMPLETE", 2: "COMPLETE", 1: "INCOMPLETE", 0: "INCOMPLETE" },
+];
+
+// pastDeadline demo tasks always get this profile instead, so their
+// completed-after-deadline scenario shows up reliably every run.
+const PAST_DEADLINE_PROFILE: Record<number, WeekStatus> = {
   4: "COMPLETE",
-  3: "IN_PROGRESS",
+  3: "COMPLETE",
   2: "COMPLETE",
   1: "INCOMPLETE",
   0: "INCOMPLETE",
 };
+
+// Every 4th standard task skips its current-week instance entirely (left
+// "empty" — no TaskInstance row at all) rather than an INCOMPLETE one.
+const SKIP_CURRENT_WEEK_EVERY_NTH = 4;
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -254,6 +267,7 @@ export async function seedDatabase() {
 
   let instanceCount = 0;
   let commentCount = 0;
+  let standardTaskIndex = 0;
 
   for (const task of tasksData) {
     const isPastDeadline = "pastDeadline" in task && task.pastDeadline === true;
@@ -303,6 +317,17 @@ export async function seedDatabase() {
     // WEEKLY -> every week, MONTHLY -> every 4th week, QUARTERLY -> oldest
     // week only (out of a 5-week window, that's the closest stand-in for
     // "once a quarter").
+    const taskIdx = standardTaskIndex;
+    const profile = isPastDeadline
+      ? PAST_DEADLINE_PROFILE
+      : WEEK_PROFILES[taskIdx % WEEK_PROFILES.length];
+    const skipCurrentWeek = !isPastDeadline && taskIdx % SKIP_CURRENT_WEEK_EVERY_NTH === 0;
+    // Not every incomplete "week before current" instance gets an excuse
+    // comment — leaving some blank lets the app's own "comment required
+    // once overdue" validation actually be exercised against real gaps.
+    const explainOverdue = isPastDeadline ? true : taskIdx % 2 === 0;
+    standardTaskIndex++;
+
     let previousWeekAgo1Status: "COMPLETE" | "INCOMPLETE" | null = null;
 
     for (const { weeksAgo, date } of weekStarts) {
@@ -314,9 +339,14 @@ export async function seedDatabase() {
       if (!due) continue;
 
       const isCurrentWeek = weeksAgo === 0;
+
+      // Left "empty" — no instance at all — for a subset of tasks so the
+      // app's own "not yet generated this week" state can be validated.
+      if (isCurrentWeek && skipCurrentWeek) continue;
+
       const weekNum = weekNumberFor(weeksAgo);
 
-      const weekPattern = STATUS_BY_WEEKS_AGO[weeksAgo] ?? "INCOMPLETE";
+      const weekPattern = profile[weeksAgo] ?? "INCOMPLETE";
       const status: "COMPLETE" | "INCOMPLETE" = weekPattern === "COMPLETE" ? "COMPLETE" : "INCOMPLETE";
       const isActivated = weekPattern === "IN_PROGRESS";
 
@@ -324,8 +354,10 @@ export async function seedDatabase() {
         { authorId: userAdmin.id, body: `Week ${weekNum} of ${weekNumberFor(0)} (${date.toDateString()}).` },
       ];
 
-      // Past week still INCOMPLETE has missed its window — needs an excuse.
-      if (status === "INCOMPLETE" && !isCurrentWeek) {
+      // Past week still INCOMPLETE has missed its window — needs an excuse,
+      // but only for some tasks (see explainOverdue above); others are left
+      // without one on purpose.
+      if (status === "INCOMPLETE" && !isCurrentWeek && explainOverdue) {
         comments.push({ authorId: task.createdById, body: pick(OVERDUE_COMMENTS) });
       }
 
