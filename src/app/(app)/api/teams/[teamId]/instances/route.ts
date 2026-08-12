@@ -47,7 +47,7 @@ export async function GET(
       });
 
       const needsExcuseForInstanceId =
-        prevInstance && prevInstance.status === "INCOMPLETE" && !prevInstance.comment
+        prevInstance && prevInstance.status === "INCOMPLETE" && !(prevInstance as any).comment
           ? prevInstance.id
           : null;
 

@@ -1,10 +1,6 @@
-// app/api/dashboard/route.ts
-// GET /api/dashboard?week=2026-06-29
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentWeekStart } from "@/lib/week";
-import { isTaskDueForWeek } from "@/lib/week";
+import { getCurrentWeekStart, isTaskDueForWeek } from "@/lib/week";
 
 export async function GET(req: Request) {
   try {
@@ -17,22 +13,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ aggregates: {}, teams: [] });
     }
 
-    // Ensure task instances exist for all active tasks that are due this week.
-    // This is the core logic: tasks define the schedule (frequency),
-    // and instances are lazily created per-week when the dashboard is viewed.
     const activeTasks = await prisma.task.findMany({
       where: { isActive: true },
     });
 
     const tasksNeedingInstances: string[] = [];
     for (const task of activeTasks) {
-      if (isTaskDueForWeek(task.frequency, weekStart)) {
+      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline)) {
         tasksNeedingInstances.push(task.id);
       }
     }
 
     if (tasksNeedingInstances.length > 0) {
-      // Use createMany with skipDuplicates so we don't fail on existing instances
       await prisma.taskInstance.createMany({
         data: tasksNeedingInstances.map((taskId) => ({
           taskId,
@@ -41,6 +33,7 @@ export async function GET(req: Request) {
         skipDuplicates: true,
       });
     }
+
 
     // Now fetch all instances for this week (including freshly created ones)
     const allInstances = await prisma.taskInstance.findMany({

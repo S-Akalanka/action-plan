@@ -15,10 +15,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username) return null;
-
-        // Auto-seed database if empty (seedDatabase() itself is destructive —
-        // it deleteMany's every table — so only call it when there's nothing
-        // to lose, not on every login).
+        
         const teamCount = await prisma.team.count();
         if (teamCount === 0) {
           await seedDatabase();

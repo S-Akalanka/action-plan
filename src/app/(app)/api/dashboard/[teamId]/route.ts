@@ -1,6 +1,3 @@
-// app/api/dashboard/[teamId]/route.ts
-// GET /api/dashboard/[teamId]?week=2026-06-29
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeekStart, isTaskDueForWeek } from "@/lib/week";
@@ -28,7 +25,7 @@ export async function GET(
 
     const tasksNeedingInstances: string[] = [];
     for (const task of activeTasks) {
-      if (isTaskDueForWeek(task.frequency, weekStart)) {
+      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline)) {
         tasksNeedingInstances.push(task.id);
       }
     }

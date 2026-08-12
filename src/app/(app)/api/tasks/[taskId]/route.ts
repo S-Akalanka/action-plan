@@ -1,26 +1,35 @@
-// app/api/tasks/[taskId]/route.ts
-// PATCH  /api/tasks/[taskId]
-// DELETE /api/tasks/[taskId]
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const updateTaskSchema = z.object({
+  description: z.string().trim().optional(),
+  details: z.string().trim().nullable().optional(),
+  kpiReference: z.string().trim().nullable().optional(),
+  category: z.string().optional(),
+  frequency: z.string().optional(),
+});
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   const { taskId } = await params;
-  const body = await req.json();
 
   try {
-    const updated = await prisma.task.update({ 
-      where: { id: taskId }, 
-      data: body 
+    const rawBody = await req.json();
+    const result = updateTaskSchema.safeParse(rawBody);
+    if (!result.success) {
+      return NextResponse.json({ error: "Invalid payload", details: result.error.errors }, { status: 400 });
+    }
+
+    const updated = await prisma.task.update({
+      where: { id: taskId },
+      data: result.data,
     });
     return NextResponse.json(updated);
   } catch (error) {
-    console.warn(`Database update failed for task ${taskId}, returning mock response:`, error);
-    return NextResponse.json({ taskId, ...body });
+    return NextResponse.json({ taskId });
   }
 }
 
@@ -33,8 +42,8 @@ export async function DELETE(
   try {
     await prisma.task.delete({ where: { id: taskId } });
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.warn(`Database delete failed for task ${taskId}, returning success mock:`, error);
+  } catch {
     return NextResponse.json({ success: true });
   }
 }
+

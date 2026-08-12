@@ -1,17 +1,10 @@
-// app/api/admin/teams/[teamId]/tasks/route.ts
-// GET  /api/admin/teams/[teamId]/tasks
-// POST /api/admin/teams/[teamId]/tasks
-//
-// deadline is now required on every Task — the last week this task is due
-// or recurs until (see lib/week.ts's isTaskDueForWeek). comment lives on
-// TaskInstance now, not Task — removed from here.
-
 import { NextResponse } from "next/server";
 import { Category, Frequency as PrismaFrequency } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
 import { requireAdminOrCeo } from "@/lib/auth";
 import { getCurrentWeekStart } from "@/lib/week";
+import { standardTaskFormSchema } from "@/lib/schemas";
 
 const CATEGORY_TO_ENUM: Record<string, Category> = {
   Finance: "FINANCE",
@@ -65,12 +58,13 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { category, description, kpiReference, frequency, deadline } = body;
-
-  if (!deadline) {
-    return NextResponse.json({ error: "deadline is required" }, { status: 400 });
+  const rawBody = await req.json();
+  const result = standardTaskFormSchema.safeParse(rawBody);
+  if (!result.success) {
+    return NextResponse.json({ error: "Invalid payload", details: result.error.issues }, { status: 400 });
   }
+
+  const { category, description, kpi, frequency, deadline } = result.data;
 
   const task = await prisma.task.create({
     data: {
@@ -78,7 +72,7 @@ export async function POST(
       createdById: session.user.id,
       category: CATEGORY_TO_ENUM[category] ?? (category as Category),
       description,
-      kpiReference: kpiReference ?? null,
+      kpiReference: kpi ?? null,
       frequency: FREQUENCY_TO_ENUM[frequency] ?? (frequency as PrismaFrequency),
       source: "STANDARD",
       deadline: new Date(deadline),
@@ -98,3 +92,4 @@ export async function POST(
     { status: 201 }
   );
 }
+
