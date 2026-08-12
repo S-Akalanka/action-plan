@@ -7,6 +7,7 @@ import { WeekSelector } from "@/components/ui/week-selector";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
 import { TaskGroup } from "@/components/my-plan/task-group";
 import { AddAdHocTaskForm } from "@/components/my-plan/add-task-form";
+import { EditAdHocTaskDialog } from "@/components/my-plan/edit-ad-hoc-task-dialog";
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, MyPlanTask } from "@/lib/types";
 import { useTeam } from "@/lib/team-context";
@@ -16,6 +17,14 @@ const CATEGORY_MAP: Record<string, CategoryKey> = {
   CUSTOMER: "Customer",
   PROCESS_TECH: "Process/Tech",
   PEOPLE: "People",
+};
+
+const FREQUENCY_TO_ENUM: Record<string, string> = {
+  Once: "ONCE",
+  Weekly: "WEEKLY",
+  "Bi-weekly": "BI_WEEKLY",
+  Monthly: "MONTHLY",
+  Quarterly: "QUARTERLY",
 };
 
 function getMonday(d: Date) {
@@ -35,13 +44,15 @@ export default function MyPlanPage() {
   const [tasks, setTasks] = useState<MyPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editingTask, setEditingTask] = useState<MyPlanTask | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
   const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
   const isCurrentWeek = selectedWeek.getTime() === getMonday(new Date()).getTime();
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
 
-  useEffect(() => {
+  const loadTasks = () => {
     if (loadingTeams) return;
 
     if (myTeams.length === 0) {
@@ -53,42 +64,34 @@ export default function MyPlanPage() {
     setLoading(true);
     const weekParam = toDateParam(selectedWeek);
 
-    const mapMerged = async (tasksData: any[], instancesData: any[]) => {
-      return Promise.all(
-        tasksData.map(async (task: any) => {
-          const instance = instancesData.find((i: any) => i.taskId === task.id);
-          let comments: any[] = [];
-          if (instance?.id) {
-            comments = await fetch(`/api/instances/${instance.id}/comments`).then((r) => r.json());
-          }
-          return {
-            id: task.id,
-            instanceId: instance?.id,
-            teamId: task.teamId,
-            desc: task.description,
-            details: task.details ?? "",
-            deadline: task.deadline,
-            category: CATEGORY_MAP[task.category] ?? task.category,
-            kpi: task.kpiReference ?? "",
-            frequency: task.frequency,
-            done: instance?.status === "COMPLETE",
-            active: instance?.isActivated ?? false,
-            completedAt: instance?.completedAt ?? undefined,
-            comments,
-          };
-        })
-      );
-    };
+    const mapMerged = (tasksData: any[], instancesData: any[]) =>
+      tasksData.map((task: any) => {
+        const instance = instancesData.find((i: any) => i.taskId === task.id);
+        return {
+          id: task.id,
+          instanceId: instance?.id,
+          teamId: task.teamId,
+          desc: task.description,
+          details: task.details ?? "",
+          deadline: task.deadline,
+          source: task.source,
+          category: CATEGORY_MAP[task.category] ?? task.category,
+          kpi: task.kpiReference ?? "",
+          frequency: task.frequency,
+          done: instance?.status === "COMPLETE",
+          active: instance?.isActivated ?? false,
+          completedAt: instance?.completedAt ?? undefined,
+          comment: instance?.comment ?? null,
+          needsExcuseForInstanceId: instance?.needsExcuseForInstanceId ?? null,
+        };
+      });
 
     if (selectedTeamId) {
       Promise.all([
         fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
         fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`).then((res) => res.json()),
       ])
-        .then(async ([tasksData, instancesData]) => {
-          const merged = await mapMerged(tasksData, instancesData); // ← await added
-          setTasks(merged);
-        })
+        .then(([tasksData, instancesData]) => setTasks(mapMerged(tasksData, instancesData)))
         .catch((err) => console.error("Error loading tasks", err))
         .finally(() => setLoading(false));
     } else {
@@ -96,9 +99,9 @@ export default function MyPlanPage() {
         Promise.all([
           fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
           fetch(`/api/teams/${team.id}/instances?week=${weekParam}`).then((res) => res.json()),
-        ]).then(async ([tasksData, instancesData]) => {
+        ]).then(([tasksData, instancesData]) => {
           if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
-          return await mapMerged(tasksData, instancesData); // ← await added
+          return mapMerged(tasksData, instancesData);
         })
       );
 
@@ -107,7 +110,9 @@ export default function MyPlanPage() {
         .catch((err) => console.error("Error loading all tasks", err))
         .finally(() => setLoading(false));
     }
-  }, [selectedTeamId, myTeams, loadingTeams, selectedWeek]);
+  };
+
+  useEffect(loadTasks, [selectedTeamId, myTeams, loadingTeams, selectedWeek]);
 
   const overallPercent = useMemo(() => {
     if (tasks.length === 0) return 0;
@@ -131,7 +136,7 @@ export default function MyPlanPage() {
   const toggle = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task) return;
+    if (!task || (task as any).needsExcuseForInstanceId) return; // locked until excuse submitted
     const nextDone = !task.done;
 
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t)));
@@ -156,7 +161,7 @@ export default function MyPlanPage() {
   const toggleActive = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task) return;
+    if (!task || (task as any).needsExcuseForInstanceId) return;
     const nextActive = !task.active;
 
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t)));
@@ -168,27 +173,16 @@ export default function MyPlanPage() {
     });
   };
 
-  // Renamed from saveComment — matches TaskGroup/task-row's single onAddComment prop.
-  const addComment = (id: string, commentBody: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-
-    fetch(`/api/instances/${(task as any).instanceId}/comments`, {
-      method: "POST",
+  // Submits the forced excuse — PATCHes the PREVIOUS (frozen) instance,
+  // not the current one, then reloads so the lock clears.
+  const submitExcuse = (needsExcuseForInstanceId: string, comment: string) => {
+    fetch(`/api/instances/${needsExcuseForInstanceId}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: commentBody }),
+      body: JSON.stringify({ comment }),
     })
-      .then((res) => res.json())
-      .then((newComment) => {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === id
-              ? { ...t, comments: [newComment, ...((t as any).comments ?? [])] }
-              : t
-          )
-        );
-      })
-      .catch((err) => console.error("Failed to save comment", err));
+      .then(() => loadTasks())
+      .catch((err) => console.error("Failed to submit excuse", err));
   };
 
   const deleteTask = (id: string) => {
@@ -197,7 +191,44 @@ export default function MyPlanPage() {
     fetch(`/api/tasks/${id}`, { method: "DELETE" });
   };
 
-  const addTask = (data: { desc: string; details: string; category: CategoryKey; kpi: string }) => {
+  const openEdit = (task: MyPlanTask) => {
+    setEditingTask(task);
+    setEditDialogOpen(true);
+  };
+
+  const saveEdit = (id: string, data: { desc: string; details: string; kpi: string; comment: string }) => {
+    const task = tasks.find((t) => t.id === id);
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? { ...t, desc: data.desc, details: data.details, kpi: data.kpi, comment: data.comment }
+          : t
+      )
+    );
+
+    fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: data.desc, details: data.details, kpiReference: data.kpi }),
+    });
+
+    if (task && (task as any).instanceId) {
+      fetch(`/api/instances/${(task as any).instanceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: data.comment }),
+      });
+    }
+  };
+
+  const addTask = (data: {
+    desc: string;
+    details: string;
+    category: CategoryKey;
+    kpi: string;
+    frequency: string;
+  }) => {
     if (!selectedTeamId) return;
 
     fetch(`/api/teams/${selectedTeamId}/tasks`, {
@@ -208,7 +239,7 @@ export default function MyPlanPage() {
         description: data.desc,
         details: data.details || null,
         kpiReference: data.kpi || null,
-        frequency: "WEEKLY",
+        frequency: FREQUENCY_TO_ENUM[data.frequency] ?? "ONCE",
         source: "ADHOC",
       }),
     })
@@ -223,12 +254,13 @@ export default function MyPlanPage() {
             desc: data.desc,
             details: data.details,
             deadline: created.deadline,
+            source: "ADHOC",
             category: data.category,
             kpi: data.kpi,
-            frequency: "Ad-hoc",
+            frequency: data.frequency,
             done: false,
             active: false,
-            comments: [],
+            comment: null,
           } as any,
         ]);
       });
@@ -302,7 +334,8 @@ export default function MyPlanPage() {
             onToggle={toggle}
             onToggleActive={toggleActive}
             onDelete={deleteTask}
-            onAddComment={addComment}
+            onEdit={openEdit}
+            onSubmitExcuse={submitExcuse}
           />
         ))}
       </div>
@@ -312,6 +345,13 @@ export default function MyPlanPage() {
           No tasks tracked{selectedTeam ? ` for ${selectedTeam.teamName}` : " across your teams"} yet.
         </div>
       )}
+
+      <EditAdHocTaskDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        task={editingTask}
+        onSave={saveEdit}
+      />
     </main>
   );
 }

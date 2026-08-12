@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, MessageSquare } from "lucide-react";
+import { Pencil, Trash2, MessageSquare, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ export function MyPlanTaskRow({
   onToggleActive,
   onDelete,
   onEdit,
+  onSubmitExcuse,
 }: {
   task: MyPlanTask;
   readOnly?: boolean;
@@ -30,15 +31,26 @@ export function MyPlanTaskRow({
   onToggleActive: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onSubmitExcuse: (needsExcuseForInstanceId: string, comment: string) => void;
 }) {
   const details = (task as any).details as string | undefined;
   const comment = (task as any).comment as string | null | undefined;
-  const isAdHoc = task.frequency === "Ad-hoc";
+  const source = (task as any).source as string | undefined;
+  const needsExcuseForInstanceId = (task as any).needsExcuseForInstanceId as string | null | undefined;
+  const isAdHoc = source === "ADHOC";
+
+  const [excuseDraft, setExcuseDraft] = useState("");
+  const isLocked = !!needsExcuseForInstanceId;
 
   const handleDelete = () => {
     if (window.confirm(`Delete "${task.desc}"? This can't be undone.`)) {
       onDelete();
     }
+  };
+
+  const handleSubmitExcuse = () => {
+    if (!excuseDraft.trim() || !needsExcuseForInstanceId) return;
+    onSubmitExcuse(needsExcuseForInstanceId, excuseDraft.trim());
   };
 
   return (
@@ -47,7 +59,7 @@ export function MyPlanTaskRow({
         <Checkbox
           checked={task.done}
           onCheckedChange={onToggle}
-          disabled={readOnly}
+          disabled={readOnly || isLocked}
           className="h-5 w-5 shrink-0 border-[#C7CEDA] data-[state=checked]:border-[#16233F] data-[state=checked]:bg-[#16233F]"
         />
 
@@ -95,7 +107,7 @@ export function MyPlanTaskRow({
           <Switch
             checked={task.active}
             onCheckedChange={onToggleActive}
-            disabled={readOnly}
+            disabled={readOnly || isLocked}
             aria-label="Toggle in progress"
           />
           {isAdHoc && (
@@ -119,10 +131,38 @@ export function MyPlanTaskRow({
         </div>
       </div>
 
-      {comment && (
+      {comment && !isLocked && (
         <div className="ml-9 flex items-start gap-1.5 text-xs text-red-600">
           <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
           <span className="italic">{comment}</span>
+        </div>
+      )}
+
+      {isLocked && (
+        <div className="ml-9 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="mb-2 text-xs font-semibold text-red-700">
+            This task was incomplete last cycle — enter a reason before continuing.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={excuseDraft}
+              onChange={(e) => setExcuseDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSubmitExcuse();
+              }}
+              placeholder="Why wasn't this completed?"
+              className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-red-400"
+            />
+            <button
+              onClick={handleSubmitExcuse}
+              disabled={!excuseDraft.trim()}
+              className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40"
+            >
+              <Send className="h-3.5 w-3.5" />
+              Submit
+            </button>
+          </div>
         </div>
       )}
     </li>

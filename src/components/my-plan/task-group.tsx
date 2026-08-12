@@ -11,6 +11,7 @@ export function TaskGroup({
   onToggleActive,
   onDelete,
   onEdit,
+  onSubmitExcuse,
 }: {
   icon: LucideIcon;
   label: string;
@@ -20,6 +21,7 @@ export function TaskGroup({
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: MyPlanTask) => void;
+  onSubmitExcuse: (needsExcuseForInstanceId: string, comment: string) => void;
 }) {
   if (tasks.length === 0) return null;
   const doneCount = tasks.filter((t) => t.done).length;
@@ -45,6 +47,7 @@ export function TaskGroup({
             onToggleActive={() => onToggleActive(task.id)}
             onDelete={() => onDelete(task.id)}
             onEdit={() => onEdit(task)}
+            onSubmitExcuse={onSubmitExcuse}
           />
         ))}
       </ul>

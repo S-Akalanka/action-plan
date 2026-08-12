@@ -14,25 +14,35 @@ import {
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey } from "@/lib/types";
 
+const FREQUENCIES = ["Once", "Weekly", "Bi-weekly", "Monthly", "Quarterly"] as const;
+
 export function AddAdHocTaskForm({
   onSave,
   onCancel,
 }: {
-  onSave: (data: { desc: string; details: string; category: CategoryKey; kpi: string }) => void;
+  onSave: (data: {
+    desc: string;
+    details: string;
+    category: CategoryKey;
+    kpi: string;
+    frequency: (typeof FREQUENCIES)[number];
+  }) => void;
   onCancel: () => void;
 }) {
   const [desc, setDesc] = useState("");
   const [details, setDetails] = useState("");
   const [category, setCategory] = useState<CategoryKey>(CATEGORIES[0].key);
   const [kpi, setKpi] = useState("");
+  const [frequency, setFrequency] = useState<(typeof FREQUENCIES)[number]>("Once");
 
   const handleSave = () => {
     if (!desc.trim()) return;
-    onSave({ desc: desc.trim(), details: details.trim(), category, kpi: kpi.trim() || "—" });
+    onSave({ desc: desc.trim(), details: details.trim(), category, kpi: kpi.trim() || "—", frequency });
     setDesc("");
     setDetails("");
     setKpi("");
     setCategory(CATEGORIES[0].key);
+    setFrequency("Once");
   };
 
   return (
@@ -66,7 +76,25 @@ export function AddAdHocTaskForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="md:col-span-3">
+
+        <div>
+          <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
+            Frequency
+          </Label>
+          <Select value={frequency} onValueChange={(v) => setFrequency(v as (typeof FREQUENCIES)[number])}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FREQUENCIES.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="md:col-span-2">
           <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
             Details (optional)
           </Label>
