@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WeekSelector } from "@/components/ui/week-selector";
@@ -40,9 +41,30 @@ function toDateParam(d: Date) {
   return d.toISOString().split("T")[0];
 }
 
+const mapMerged = (tasksData: any[], instancesData: any[]) =>
+  tasksData.map((task: any) => {
+    const instance = instancesData.find((i: any) => i.taskId === task.id);
+    return {
+      id: task.id,
+      instanceId: instance?.id,
+      teamId: task.teamId,
+      desc: task.description,
+      details: task.details ?? "",
+      deadline: task.deadline,
+      source: task.source,
+      category: CATEGORY_MAP[task.category] ?? task.category,
+      kpi: task.kpiReference ?? "",
+      frequency: task.frequency,
+      done: instance?.status === "COMPLETE",
+      active: instance?.isActivated ?? false,
+      completedAt: instance?.completedAt ?? undefined,
+      comment: instance?.comment ?? null,
+      needsExcuseForInstanceId: instance?.needsExcuseForInstanceId ?? null,
+    };
+  });
+
 export default function MyPlanPage() {
-  const [tasks, setTasks] = useState<MyPlanTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [editingTask, setEditingTask] = useState<MyPlanTask | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -51,68 +73,142 @@ export default function MyPlanPage() {
 
   const isCurrentWeek = selectedWeek.getTime() === getMonday(new Date()).getTime();
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) ?? null;
+  const weekParam = toDateParam(selectedWeek);
 
-  const loadTasks = () => {
-    if (loadingTeams) return;
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery<MyPlanTask[]>({
+    queryKey: ["my-plan", selectedTeamId, weekParam, myTeams.map((t) => t.id).join(",")],
+    queryFn: async () => {
+      if (myTeams.length === 0) return [];
 
-    if (myTeams.length === 0) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const weekParam = toDateParam(selectedWeek);
-
-    const mapMerged = (tasksData: any[], instancesData: any[]) =>
-      tasksData.map((task: any) => {
-        const instance = instancesData.find((i: any) => i.taskId === task.id);
-        return {
-          id: task.id,
-          instanceId: instance?.id,
-          teamId: task.teamId,
-          desc: task.description,
-          details: task.details ?? "",
-          deadline: task.deadline,
-          source: task.source,
-          category: CATEGORY_MAP[task.category] ?? task.category,
-          kpi: task.kpiReference ?? "",
-          frequency: task.frequency,
-          done: instance?.status === "COMPLETE",
-          active: instance?.isActivated ?? false,
-          completedAt: instance?.completedAt ?? undefined,
-          comment: instance?.comment ?? null,
-          needsExcuseForInstanceId: instance?.needsExcuseForInstanceId ?? null,
-        };
-      });
-
-    if (selectedTeamId) {
-      Promise.all([
-        fetch(`/api/teams/${selectedTeamId}/tasks`).then((res) => res.json()),
-        fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`).then((res) => res.json()),
-      ])
-        .then(([tasksData, instancesData]) => setTasks(mapMerged(tasksData, instancesData)))
-        .catch((err) => console.error("Error loading tasks", err))
-        .finally(() => setLoading(false));
-    } else {
-      const fetchPromises = myTeams.map((team) =>
-        Promise.all([
-          fetch(`/api/teams/${team.id}/tasks`).then((res) => res.json()),
-          fetch(`/api/teams/${team.id}/instances?week=${weekParam}`).then((res) => res.json()),
-        ]).then(([tasksData, instancesData]) => {
+      if (selectedTeamId) {
+        const [tasksRes, instancesRes] = await Promise.all([
+          fetch(`/api/teams/${selectedTeamId}/tasks`),
+          fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`),
+        ]);
+        const tasksData = await tasksRes.json();
+        const instancesData = await instancesRes.json();
+        return mapMerged(tasksData, instancesData);
+      } else {
+        const fetchPromises = myTeams.map(async (team) => {
+          const [tasksRes, instancesRes] = await Promise.all([
+            fetch(`/api/teams/${team.id}/tasks`),
+            fetch(`/api/teams/${team.id}/instances?week=${weekParam}`),
+          ]);
+          const tasksData = await tasksRes.json();
+          const instancesData = await instancesRes.json();
           if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
           return mapMerged(tasksData, instancesData);
-        })
-      );
+        });
 
-      Promise.all(fetchPromises)
-        .then((results) => setTasks(results.flat()))
-        .catch((err) => console.error("Error loading all tasks", err))
-        .finally(() => setLoading(false));
-    }
+        const results = await Promise.all(fetchPromises);
+        return results.flat();
+      }
+    },
+    enabled: !loadingTeams,
+  });
+
+  const invalidatePlan = () => {
+    queryClient.invalidateQueries({ queryKey: ["my-plan"] });
   };
 
-  useEffect(loadTasks, [selectedTeamId, myTeams, loadingTeams, selectedWeek]);
+  const toggleMutation = useMutation({
+    mutationFn: async ({ instanceId, nextDone }: { instanceId: string; nextDone: boolean }) => {
+      const res = await fetch(`/api/instances/${instanceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextDone ? "COMPLETE" : "INCOMPLETE" }),
+      });
+      return res.json();
+    },
+    onSuccess: invalidatePlan,
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ instanceId, nextActive }: { instanceId: string; nextActive: boolean }) => {
+      const res = await fetch(`/api/instances/${instanceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActivated: nextActive }),
+      });
+      return res.json();
+    },
+    onSuccess: invalidatePlan,
+  });
+
+  const submitExcuseMutation = useMutation({
+    mutationFn: async ({ instanceId, comment }: { instanceId: string; comment: string }) => {
+      const res = await fetch(`/api/instances/${instanceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment }),
+      });
+      return res.json();
+    },
+    onSuccess: invalidatePlan,
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    },
+    onSuccess: invalidatePlan,
+  });
+
+  const saveEditMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+      instanceId,
+    }: {
+      id: string;
+      data: { desc: string; details: string; kpi: string; comment: string };
+      instanceId?: string;
+    }) => {
+      await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: data.desc, details: data.details, kpiReference: data.kpi }),
+      });
+
+      if (instanceId) {
+        await fetch(`/api/instances/${instanceId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: data.comment }),
+        });
+      }
+    },
+    onSuccess: invalidatePlan,
+  });
+
+  const addTaskMutation = useMutation({
+    mutationFn: async (data: {
+      desc: string;
+      details: string;
+      category: CategoryKey;
+      kpi: string;
+      frequency: string;
+    }) => {
+      if (!selectedTeamId) return;
+      const res = await fetch(`/api/teams/${selectedTeamId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: data.category,
+          description: data.desc,
+          details: data.details || null,
+          kpiReference: data.kpi || null,
+          frequency: FREQUENCY_TO_ENUM[data.frequency] ?? "ONCE",
+          source: "ADHOC",
+        }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidatePlan();
+      setAdding(false);
+    },
+  });
 
   const overallPercent = useMemo(() => {
     if (tasks.length === 0) return 0;
@@ -136,59 +232,28 @@ export default function MyPlanPage() {
   const toggle = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task || (task as any).needsExcuseForInstanceId) return; // locked until excuse submitted
-    const nextDone = !task.done;
-
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t)));
-
-    fetch(`/api/instances/${(task as any).instanceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextDone ? "COMPLETE" : "INCOMPLETE" }),
-    })
-      .then((res) => res.json())
-      .then((updated) => {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === id
-              ? { ...t, done: updated.status === "COMPLETE", completedAt: updated.completedAt }
-              : t
-          )
-        );
-      });
+    if (!task || (task as any).needsExcuseForInstanceId) return;
+    const instanceId = (task as any).instanceId;
+    if (!instanceId) return;
+    toggleMutation.mutate({ instanceId, nextDone: !task.done });
   };
 
   const toggleActive = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
     if (!task || (task as any).needsExcuseForInstanceId) return;
-    const nextActive = !task.active;
-
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t)));
-
-    fetch(`/api/instances/${(task as any).instanceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActivated: nextActive }),
-    });
+    const instanceId = (task as any).instanceId;
+    if (!instanceId) return;
+    toggleActiveMutation.mutate({ instanceId, nextActive: !task.active });
   };
 
-  // Submits the forced excuse — PATCHes the PREVIOUS (frozen) instance,
-  // not the current one, then reloads so the lock clears.
   const submitExcuse = (needsExcuseForInstanceId: string, comment: string) => {
-    fetch(`/api/instances/${needsExcuseForInstanceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment }),
-    })
-      .then(() => loadTasks())
-      .catch((err) => console.error("Failed to submit excuse", err));
+    submitExcuseMutation.mutate({ instanceId: needsExcuseForInstanceId, comment });
   };
 
   const deleteTask = (id: string) => {
     if (!isCurrentWeek) return;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    deleteTaskMutation.mutate(id);
   };
 
   const openEdit = (task: MyPlanTask) => {
@@ -198,28 +263,7 @@ export default function MyPlanPage() {
 
   const saveEdit = (id: string, data: { desc: string; details: string; kpi: string; comment: string }) => {
     const task = tasks.find((t) => t.id === id);
-
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, desc: data.desc, details: data.details, kpi: data.kpi, comment: data.comment }
-          : t
-      )
-    );
-
-    fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: data.desc, details: data.details, kpiReference: data.kpi }),
-    });
-
-    if (task && (task as any).instanceId) {
-      fetch(`/api/instances/${(task as any).instanceId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment: data.comment }),
-      });
-    }
+    saveEditMutation.mutate({ id, data, instanceId: (task as any)?.instanceId });
   };
 
   const addTask = (data: {
@@ -229,46 +273,10 @@ export default function MyPlanPage() {
     kpi: string;
     frequency: string;
   }) => {
-    if (!selectedTeamId) return;
-
-    fetch(`/api/teams/${selectedTeamId}/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category: data.category,
-        description: data.desc,
-        details: data.details || null,
-        kpiReference: data.kpi || null,
-        frequency: FREQUENCY_TO_ENUM[data.frequency] ?? "ONCE",
-        source: "ADHOC",
-      }),
-    })
-      .then((res) => res.json())
-      .then((created) => {
-        setTasks((prev) => [
-          ...prev,
-          {
-            id: created.id,
-            instanceId: created.firstInstanceId,
-            teamId: selectedTeamId,
-            desc: data.desc,
-            details: data.details,
-            deadline: created.deadline,
-            source: "ADHOC",
-            category: data.category,
-            kpi: data.kpi,
-            frequency: data.frequency,
-            done: false,
-            active: false,
-            comment: null,
-          } as any,
-        ]);
-      });
-
-    setAdding(false);
+    addTaskMutation.mutate(data);
   };
 
-  if (loadingTeams || loading) {
+  if (loadingTeams || loadingTasks) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
@@ -355,3 +363,4 @@ export default function MyPlanPage() {
     </main>
   );
 }
+

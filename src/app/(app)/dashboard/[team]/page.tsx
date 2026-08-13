@@ -1,7 +1,8 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Eye, Filter } from "lucide-react";
 import { WeekSelector } from "@/components/ui/week-selector";
 import type { TeamDrilldownStats } from "@/lib/types";
@@ -26,72 +27,63 @@ export default function TeamDrilldownPage({
 }) {
   const { team } = use(params);
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
-  const [stats, setStats] = useState<TeamDrilldownStats | null>(null);
-  const [teamName, setTeamName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFoundFlag, setNotFoundFlag] = useState(false);
+  const weekParam = toDateParam(selectedWeek);
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/dashboard/${team}?week=${toDateParam(selectedWeek)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data || !data.teamId) {
-          setNotFoundFlag(true);
-          return;
-        }
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["dashboard-team", team, weekParam],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/${team}?week=${weekParam}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
 
-        // Team label now comes straight from the API response, not a mock lookup.
-        setTeamName(data.teamName);
-
-        const completed = data.tasks.filter((t: any) => t.status === "COMPLETE").length;
-        const incomplete = data.tasks.length - completed;
-
-        setStats({
-          teamId: data.teamId,
-          totalTasks: data.tasks.length,
-          completed,
-          incomplete,
-          currentlyActive: data.tasks.filter((t: any) => t.isActivated).length,
-          completedTrendLabel: "",
-          performanceIndex: data.overall,
-          initiatives: data.tasks.map((t: any) => {
-            const initials = t.createdBy?.name
-              ? t.createdBy.name
-                  .split(" ")
-                  .map((n: string) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)
-              : "—";
-            return {
-              id: t.taskId,
-              title: t.description,
-              subtitle: t.category,
-              ownerInitials: initials,
-              ownerName: t.createdBy?.name ?? "—",
-              frequency: t.frequency ?? "Weekly",
-              kpi: t.kpiReference ?? "—",
-              active: t.isActivated ?? false,
-              completed: t.status === "COMPLETE",
-            };
-          }),
-        });
-      })
-      .finally(() => setLoading(false));
-  }, [team, selectedWeek]);
-
-  if (notFoundFlag) {
+  if (!loading && (!data || !data.teamId)) {
     notFound();
   }
 
-  if (loading || !stats || !teamName) {
+  if (loading || !data || !data.teamId) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
       </main>
     );
   }
+
+  const teamName: string = data.teamName;
+  const completed = data.tasks.filter((t: any) => t.status === "COMPLETE").length;
+  const incomplete = data.tasks.length - completed;
+
+  const stats: TeamDrilldownStats = {
+    teamId: data.teamId,
+    totalTasks: data.tasks.length,
+    completed,
+    incomplete,
+    currentlyActive: data.tasks.filter((t: any) => t.isActivated).length,
+    completedTrendLabel: "",
+    performanceIndex: data.overall,
+    initiatives: data.tasks.map((t: any) => {
+      const initials = t.createdBy?.name
+        ? t.createdBy.name
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+        : "—";
+      return {
+        id: t.taskId,
+        title: t.description,
+        subtitle: t.category,
+        ownerInitials: initials,
+        ownerName: t.createdBy?.name ?? "—",
+        frequency: t.frequency ?? "Weekly",
+        kpi: t.kpiReference ?? "—",
+        active: t.isActivated ?? false,
+        completed: t.status === "COMPLETE",
+      };
+    }),
+  };
 
   const activePct = stats.totalTasks > 0
     ? Math.round((stats.currentlyActive / stats.totalTasks) * 100)

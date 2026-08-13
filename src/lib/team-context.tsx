@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
 interface MyTeam {
@@ -21,29 +21,25 @@ interface TeamContextType {
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
-  const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
-  const [loadingTeams, setLoadingTeams] = useState(true);
+  const { data: session } = useSession();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState<number>(42);
 
-  const { data: session, status } = useSession();
+  const { data: myTeams = [], isLoading: loadingTeams } = useQuery<MyTeam[]>({
+    queryKey: ["teams", session?.user?.id],
+    queryFn: async () => {
+      const res = await fetch("/api/users/current/teams");
+      if (!res.ok) throw new Error("Not signed in");
+      return res.json();
+    },
+    enabled: !!session?.user,
+  });
 
   useEffect(() => {
-    fetch("/api/users/current/teams")
-      .then((res) => {
-        if (!res.ok) throw new Error("Not signed in");
-        return res.json();
-      })
-      .then((teams: MyTeam[]) => {
-        setMyTeams(teams);
-        if (teams.length > 0) setSelectedTeamId(teams[0].id);
-      })
-      .catch(() => {
-        setMyTeams([]);
-        setSelectedTeamId(null);
-      })
-      .finally(() => setLoadingTeams(false));
-  }, [session?.user?.id]);
+    if (myTeams.length > 0 && selectedTeamId === null) {
+      setSelectedTeamId(myTeams[0].id);
+    }
+  }, [myTeams, selectedTeamId]);
 
   return (
     <TeamContext.Provider
@@ -61,3 +57,4 @@ export function useTeam() {
   }
   return context;
 }
+

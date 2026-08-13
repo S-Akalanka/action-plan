@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { WeekSelector } from "@/components/ui/week-selector";
 import { KpiCard } from "@/components/executive-summary/kpi-card";
 import { TeamSummaryCard } from "@/components/executive-summary/team-summary-card";
@@ -30,47 +31,34 @@ interface ApiTeam {
 
 export default function ExecutiveSummaryPage() {
   const [selectedWeek, setSelectedWeek] = useState(() => getMonday(new Date()));
-  const [teamSummaries, setTeamSummaries] = useState<ExecutiveTeamSummary[]>([]);
-  const [apiTeams, setApiTeams] = useState<ApiTeam[]>([]);
-  const [aggregates, setAggregates] = useState<Record<string, number>>({ FINANCE: 0, CUSTOMER: 0, PROCESS_TECH: 0, PEOPLE: 0 });
-  const [loading, setLoading] = useState(true);
+  const weekParam = toDateParam(selectedWeek);
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/dashboard?week=${toDateParam(selectedWeek)}`)
-      .then((res) => {
-        if (!res.ok) return res.json().then((err) => Promise.reject(err));
-        return res.json();
-      })
-      .then((data) => {
-        if (!data || !Array.isArray(data.teams)) {
-          console.error("Unexpected /api/dashboard response:", data);
-          setTeamSummaries([]);
-          setApiTeams([]);
-          return;
-        }
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["dashboard", weekParam],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard?week=${weekParam}`);
+      if (!res.ok) throw new Error("Failed to load dashboard data");
+      return res.json();
+    },
+  });
 
-        setAggregates(data.aggregates || { FINANCE: 0, CUSTOMER: 0, PROCESS_TECH: 0, PEOPLE: 0 });
-        setApiTeams(data.teams);
+  const apiTeams: ApiTeam[] = data && Array.isArray(data.teams) ? data.teams : [];
+  const aggregates: Record<string, number> = data?.aggregates || {
+    FINANCE: 0,
+    CUSTOMER: 0,
+    PROCESS_TECH: 0,
+    PEOPLE: 0,
+  };
 
-        const mapped: ExecutiveTeamSummary[] = data.teams.map((d: ApiTeam) => ({
-          teamId: d.teamId,
-          overall: d.overall,
-          status: d.overall >= 80 ? "On Track" : d.overall >= 50 ? "Needs Attention" : "Pending",
-          metrics: Object.entries(d.categories).map(([category, percent]) => ({
-            category: category as CategoryKey,
-            percent: percent as number,
-          })),
-        }));
-        setTeamSummaries(mapped);
-      })
-      .catch((err) => {
-        console.error("Failed to load dashboard:", err);
-        setTeamSummaries([]);
-        setApiTeams([]);
-      })
-      .finally(() => setLoading(false));
-  }, [selectedWeek]);
+  const teamSummaries: ExecutiveTeamSummary[] = apiTeams.map((d: ApiTeam) => ({
+    teamId: d.teamId,
+    overall: d.overall,
+    status: d.overall >= 80 ? "On Track" : d.overall >= 50 ? "Needs Attention" : "Pending",
+    metrics: Object.entries(d.categories).map(([category, percent]) => ({
+      category: category as CategoryKey,
+      percent: percent as number,
+    })),
+  }));
 
   const kpiCards = [
     { id: "finance", label: "Finance", icon: Landmark, percent: aggregates.FINANCE ?? 0 },
@@ -105,7 +93,6 @@ export default function ExecutiveSummaryPage() {
             {apiTeams.map((apiTeam) => {
               const summary = teamSummaries.find((s) => s.teamId === apiTeam.teamId);
               if (!summary) return null;
-              // Build a team object compatible with TeamSummaryCard
               const team = {
                 id: apiTeam.teamId,
                 label: apiTeam.teamName,
@@ -118,3 +105,4 @@ export default function ExecutiveSummaryPage() {
     </main>
   );
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -21,17 +21,17 @@ export function SiteHeader({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [role, setRole] = useState<Role | null>(null);
 
-  useEffect(() => {
-    fetch("/api/users/current")
-      .then((res) => {
-        if (!res.ok) throw new Error("Not signed in");
-        return res.json();
-      })
-      .then((user) => setRole(user.role))
-      .catch(() => setRole(null));
-  }, []);
+  const { data: currentUser } = useQuery<{ role: Role }>({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      const res = await fetch("/api/users/current");
+      if (!res.ok) throw new Error("Not signed in");
+      return res.json();
+    },
+  });
+
+  const role = currentUser?.role ?? null;
 
   const visibleLinks = role
     ? ALL_NAV_LINKS.filter((link) => link.roles.includes(role))

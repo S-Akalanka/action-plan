@@ -6,12 +6,6 @@ import { LayoutGrid, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTeam } from "@/lib/team-context";
 
-/**
- * Unified sidebar shown on all pages except the main dashboard (/).
- * Renders the SIGNED-IN USER'S actual teams (via useTeam's myTeams),
- * not a global mock list — a TEAM-role user only sees teams they belong
- * to; ADMIN/CEO see all teams (handled server-side by the teams API).
- */
 export function AppSidebar() {
   const pathname = usePathname();
   const { myTeams, loadingTeams, selectedTeamId, setSelectedTeamId } = useTeam();

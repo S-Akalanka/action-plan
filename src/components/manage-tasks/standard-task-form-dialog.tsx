@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, StandardTask, StandardTaskFrequency } from "@/lib/types";
+import { standardTaskFormSchema } from "@/lib/schemas";
 
 const FREQUENCIES: StandardTaskFrequency[] = ["Once", "Weekly", "Bi-weekly", "Monthly", "Quarterly"];
 
@@ -44,10 +45,12 @@ export function StandardTaskFormDialog({
   onSave: (data: Omit<StandardTask, "id">, id?: string) => void;
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
+  const [error, setError] = useState<string | null>(null);
   const isEditing = Boolean(initialTask);
 
   useEffect(() => {
     if (open) {
+      setError(null);
       setForm(
         initialTask
           ? {
@@ -64,15 +67,20 @@ export function StandardTaskFormDialog({
   }, [open, initialTask]);
 
   const handleSave = () => {
-    if (!form.description.trim() || !form.deadline) return;
+    const result = standardTaskFormSchema.safeParse(form);
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Invalid form input");
+      return;
+    }
+    setError(null);
     onSave(
       {
-        description: form.description.trim(),
-        details: form.details.trim(),
-        category: form.category,
-        kpi: form.kpi.trim() || "—",
-        frequency: form.frequency,
-        deadline: form.deadline,
+        description: result.data.description,
+        details: result.data.details ?? "",
+        category: result.data.category,
+        kpi: result.data.kpi || "—",
+        frequency: result.data.frequency,
+        deadline: result.data.deadline,
       } as any,
       initialTask?.id
     );
@@ -86,6 +94,8 @@ export function StandardTaskFormDialog({
           <DialogTitle>{isEditing ? "Edit Standard Task" : "Add Standard Task"}</DialogTitle>
         </DialogHeader>
 
+        {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+
         <div className="space-y-4 py-2">
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
@@ -93,7 +103,10 @@ export function StandardTaskFormDialog({
             </Label>
             <Input
               value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, description: e.target.value }));
+                if (error) setError(null);
+              }}
               placeholder="e.g. Monthly Financial Reconciliation"
             />
           </div>
@@ -173,7 +186,10 @@ export function StandardTaskFormDialog({
             <Input
               type="date"
               value={form.deadline}
-              onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, deadline: e.target.value }));
+                if (error) setError(null);
+              }}
             />
             <p className="mt-1 text-xs text-[#9AA3B2]">
               {form.frequency === "Once"
@@ -199,3 +215,4 @@ export function StandardTaskFormDialog({
     </Dialog>
   );
 }
+

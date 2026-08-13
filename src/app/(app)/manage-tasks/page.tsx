@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StandardTasksTable } from "@/components/manage-tasks/standard-tasks-table";
@@ -12,43 +13,75 @@ import { useTeam } from "@/lib/team-context";
 const PAGE_SIZE = 5;
 
 export default function ManageTasksPage() {
+  const queryClient = useQueryClient();
   const { myTeams, loadingTeams, selectedTeamId } = useTeam();
 
-  const [tasks, setTasks] = useState<StandardTask[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<StandardTask | null>(null);
 
-  // selectedTeamId === null means "Overview" — matches the same convention
-  // AppSidebar already uses (Overview button clears selectedTeamId).
   const selectedTeam = selectedTeamId
     ? myTeams.find((t) => t.id === selectedTeamId)
     : null;
 
-  useEffect(() => {
-    if (loadingTeams) return;
+  const fetchTeamId = selectedTeamId ?? "all";
 
-    const fetchTeamId = selectedTeamId ?? "all";
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery<StandardTask[]>({
+    queryKey: ["manage-tasks", fetchTeamId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/teams/${fetchTeamId}/tasks`);
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data.map((t: any) => ({
+        id: t.taskId ?? t.id,
+        description: t.description,
+        details: t.details ?? "",
+        category: t.category,
+        kpi: t.kpiReference ?? "",
+        frequency: t.frequency,
+        teamId: t.teamId,
+        teamName: t.teamName,
+        isActive: t.isActive ?? true,
+      }));
+    },
+    enabled: !loadingTeams,
+  });
 
-    setLoading(true);
-    fetch(`/api/admin/teams/${fetchTeamId}/tasks`)
-      .then((res) => res.json())
-      .then((data) => {
-        const mapped: StandardTask[] = data.map((t: any) => ({
-          id: t.taskId ?? t.id,
-          description: t.description,
-          details: t.details ?? "",
-          category: t.category,
-          kpi: t.kpiReference ?? "",
-          frequency: t.frequency,
-          teamId: t.teamId,
-          teamName: t.teamName,
-        }));
-        setTasks(mapped);
-      })
-      .finally(() => setLoading(false));
-  }, [selectedTeamId, loadingTeams]);
+  const invalidateTasks = () => {
+    queryClient.invalidateQueries({ queryKey: ["manage-tasks"] });
+  };
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    },
+    onSuccess: invalidateTasks,
+  });
+
+  const saveTaskMutation = useMutation({
+    mutationFn: async ({ data, id }: { data: Omit<StandardTask, "id">; id?: string }) => {
+      if (id) {
+        await fetch(`/api/tasks/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: data.description, kpiReference: data.kpi }),
+        });
+      } else {
+        if (!selectedTeamId) return;
+        await fetch(`/api/admin/teams/${selectedTeamId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: data.category,
+            description: data.description,
+            kpiReference: data.kpi,
+            frequency: data.frequency,
+          }),
+        });
+      }
+    },
+    onSuccess: invalidateTasks,
+  });
 
   const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
   const pageTasks = useMemo(
@@ -67,44 +100,14 @@ export default function ManageTasksPage() {
   };
 
   const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    deleteTaskMutation.mutate(id);
   };
 
   const saveTask = (data: Omit<StandardTask, "id">, id?: string) => {
-    if (id) {
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
-      fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: data.description, kpiReference: data.kpi }),
-      });
-    } else {
-      // Adding a new task from Overview needs an explicit team — can't
-      // create a task with no owning team. Require a specific team selected.
-      if (!selectedTeamId) return;
-
-      fetch(`/api/admin/teams/${selectedTeamId}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: data.category,
-          description: data.description,
-          kpiReference: data.kpi,
-          frequency: data.frequency,
-        }),
-      })
-        .then((res) => res.json())
-        .then((created) => {
-          setTasks((prev) => [
-            { id: created.taskId, ...data, teamId: selectedTeamId, teamName: created.teamName },
-            ...prev,
-          ]);
-        });
-    }
+    saveTaskMutation.mutate({ data, id });
   };
 
-  if (loadingTeams || loading) {
+  if (loadingTeams || loadingTasks) {
     return (
       <main className="flex-1 px-8 py-8">
         <p className="text-sm text-[#5B6472]">Loading…</p>
@@ -157,3 +160,4 @@ export default function ManageTasksPage() {
     </main>
   );
 }
+

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey } from "@/lib/types";
+import { adHocTaskFormSchema } from "@/lib/schemas";
 
 const FREQUENCIES = ["Once", "Weekly", "Bi-weekly", "Monthly", "Quarterly"] as const;
 
@@ -34,10 +35,22 @@ export function AddAdHocTaskForm({
   const [category, setCategory] = useState<CategoryKey>(CATEGORIES[0].key);
   const [kpi, setKpi] = useState("");
   const [frequency, setFrequency] = useState<(typeof FREQUENCIES)[number]>("Once");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = () => {
-    if (!desc.trim()) return;
-    onSave({ desc: desc.trim(), details: details.trim(), category, kpi: kpi.trim() || "—", frequency });
+    const result = adHocTaskFormSchema.safeParse({ desc, details, category, kpi, frequency });
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Invalid form input");
+      return;
+    }
+    setError(null);
+    onSave({
+      desc: result.data.desc,
+      details: result.data.details ?? "",
+      category: result.data.category,
+      kpi: result.data.kpi || "—",
+      frequency: result.data.frequency,
+    });
     setDesc("");
     setDetails("");
     setKpi("");
@@ -48,6 +61,7 @@ export function AddAdHocTaskForm({
   return (
     <div className="rounded-xl border border-[#16233F] bg-white p-6 shadow-sm">
       <h3 className="mb-4 text-base font-semibold text-[#16233F]">New ad-hoc task</h3>
+      {error && <p className="mb-4 text-xs font-medium text-red-600">{error}</p>}
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
           <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
@@ -55,7 +69,10 @@ export function AddAdHocTaskForm({
           </Label>
           <Input
             value={desc}
-            onChange={(e) => setDesc(e.target.value)}
+            onChange={(e) => {
+              setDesc(e.target.value);
+              if (error) setError(null);
+            }}
             placeholder="What needs to be done?"
           />
         </div>
@@ -126,3 +143,4 @@ export function AddAdHocTaskForm({
     </div>
   );
 }
+

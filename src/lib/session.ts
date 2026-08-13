@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username) return null;
-        
+
         const teamCount = await prisma.team.count();
         if (teamCount === 0) {
           await seedDatabase();
@@ -25,12 +25,11 @@ export const authOptions: NextAuthOptions = {
         const roleInput = (credentials.role || "").toUpperCase();
         const role = ["TEAM", "ADMIN", "CEO"].includes(roleInput) ? (roleInput as "TEAM" | "ADMIN" | "CEO") : "TEAM";
 
-        // Find user by username (mapped to microsoftId in db schema)
         let user = await prisma.user.findUnique({
           where: { microsoftId: username },
         });
 
-        // Auto-create user if they don't exist yet for seamless manual usage
+        // Auto-create user if they don't exist
         if (!user) {
           user = await prisma.user.create({
             data: {
