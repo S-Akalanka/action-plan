@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import type { MyPlanTask } from "@/lib/types";
-import { editAdHocTaskFormSchema } from "@/lib/schemas";
+import {
+  editAdHocTaskFormSchema,
+  type EditAdHocTaskFormValues,
+} from "@/lib/schemas";
+
+const LABEL_CLASS =
+  "mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2] text-gray-500";
+const FEILD_CLASS = 
+  "bg-gray-200/40 border-gray-400/40 focus:border-gray-400/40 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-500 "
 
 export function EditAdHocTaskDialog({
   open,
@@ -24,115 +34,159 @@ export function EditAdHocTaskDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: MyPlanTask | null;
-  onSave: (id: string, data: { desc: string; details: string; kpi: string; comment: string }) => void;
+  onSave: (
+    id: string,
+    data: { desc: string; details: string; kpi: string; comment: string },
+  ) => void;
 }) {
-  const [form, setForm] = useState({ desc: "", details: "", kpi: "", comment: "" });
-  const [error, setError] = useState<string | null>(null);
+  const form = useForm<EditAdHocTaskFormValues>({
+    resolver: zodResolver(editAdHocTaskFormSchema),
+    defaultValues: { desc: "", details: "", kpi: "", comment: "" },
+  });
 
   useEffect(() => {
     if (open && task) {
-      setError(null);
-      setForm({
+      form.reset({
         desc: task.desc,
         details: (task as any).details ?? "",
         kpi: task.kpi,
         comment: (task as any).comment ?? "",
       });
     }
-  }, [open, task]);
+  }, [open, task, form]);
 
-  const handleSave = () => {
+  const handleSubmit = (data: EditAdHocTaskFormValues) => {
     if (!task) return;
-    const result = editAdHocTaskFormSchema.safeParse(form);
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? "Invalid form input");
-      return;
-    }
-    setError(null);
     onSave(task.id, {
-      desc: result.data.desc,
-      details: result.data.details ?? "",
-      kpi: result.data.kpi ?? "",
-      comment: result.data.comment ?? "",
+      desc: data.desc,
+      details: data.details ?? "",
+      kpi: data.kpi ?? "",
+      comment: data.comment ?? "",
     });
     onOpenChange(false);
   };
 
   if (!task) return null;
 
+  const descValue = form.watch("desc");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg border-none bg-gray-100/70 backdrop-blur-md border-gray-300/40 shadow-xl">
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
 
-        {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <div className="space-y-4 py-2">
+            <Controller
+              name="desc"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name} className={LABEL_CLASS}>
+                    Description
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                    placeholder="What needs to be done?"
+                    className={FEILD_CLASS}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
 
-        <div className="space-y-4 py-2">
-          <div>
-            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              Description
-            </Label>
-            <Input
-              value={form.desc}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, desc: e.target.value }));
-                if (error) setError(null);
-              }}
-              placeholder="What needs to be done?"
+            <Controller
+              name="details"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name} className={LABEL_CLASS}>
+                    Details
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Additional context about this task"
+                    className={FEILD_CLASS}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="kpi"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name} className={LABEL_CLASS}>
+                    KPI Reference
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                    placeholder="e.g. Ledger Accuracy %"
+                    className={FEILD_CLASS}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="comment"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name} className={LABEL_CLASS}>
+                    Comment
+                  </FieldLabel>
+                  <Textarea
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Optional note about this task"
+                    rows={3}
+                    className={FEILD_CLASS}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
             />
           </div>
 
-          <div>
-            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              Details
-            </Label>
-            <Input
-              value={form.details}
-              onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))}
-              placeholder="Additional context about this task"
-            />
-          </div>
-
-          <div>
-            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              KPI Reference
-            </Label>
-            <Input
-              value={form.kpi}
-              onChange={(e) => setForm((f) => ({ ...f, kpi: e.target.value }))}
-              placeholder="e.g. Ledger Accuracy %"
-            />
-          </div>
-
-          <div>
-            <Label className="mb-1.5 block text-xs uppercase tracking-wider text-[#9AA3B2]">
-              Comment
-            </Label>
-            <Textarea
-              value={form.comment}
-              onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
-              placeholder="Optional note about this task"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!form.desc.trim()}
-            className="bg-[#16233F] hover:bg-[#0F1A30] text-white disabled:opacity-50"
-          >
-            Save Changes
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!descValue?.trim()}
+              className="bg-[#16233F] text-white hover:bg-[#0F1A30] disabled:opacity-50"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 }
-

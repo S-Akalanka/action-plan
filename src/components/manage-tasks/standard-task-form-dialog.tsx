@@ -22,6 +22,9 @@ import { CATEGORIES } from "@/lib/categories";
 import type { CategoryKey, StandardTask, StandardTaskFrequency } from "@/lib/types";
 import { standardTaskFormSchema } from "@/lib/schemas";
 
+const FEILD_CLASS = 
+  "bg-gray-200/40 border-gray-400/40 focus:border-gray-400/40 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-500 "
+
 const FREQUENCIES: StandardTaskFrequency[] = ["Once", "Weekly", "Bi-weekly", "Monthly", "Quarterly"];
 
 const EMPTY_FORM = {
@@ -89,7 +92,7 @@ export function StandardTaskFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg border-none bg-gray-100/70 backdrop-blur-md border-gray-300/40 shadow-xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Standard Task" : "Add Standard Task"}</DialogTitle>
         </DialogHeader>
@@ -102,6 +105,7 @@ export function StandardTaskFormDialog({
               Description
             </Label>
             <Input
+              className={FEILD_CLASS}
               value={form.description}
               onChange={(e) => {
                 setForm((f) => ({ ...f, description: e.target.value }));
@@ -116,6 +120,7 @@ export function StandardTaskFormDialog({
               Details
             </Label>
             <Input
+              className={FEILD_CLASS}
               value={form.details}
               onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))}
               placeholder="Short description of what this task involves"
@@ -131,10 +136,10 @@ export function StandardTaskFormDialog({
                 value={form.category}
                 onValueChange={(v) => setForm((f) => ({ ...f, category: v as CategoryKey }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className={FEILD_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-200">
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat.key} value={cat.key}>
                       {cat.key}
@@ -154,10 +159,10 @@ export function StandardTaskFormDialog({
                   setForm((f) => ({ ...f, frequency: v as StandardTaskFrequency }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className={FEILD_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-200">
                   {FREQUENCIES.map((f) => (
                     <SelectItem key={f} value={f}>
                       {f}
@@ -173,6 +178,7 @@ export function StandardTaskFormDialog({
               KPI Reference
             </Label>
             <Input
+              className={FEILD_CLASS}
               value={form.kpi}
               onChange={(e) => setForm((f) => ({ ...f, kpi: e.target.value }))}
               placeholder="e.g. Ledger Accuracy %"
@@ -184,6 +190,7 @@ export function StandardTaskFormDialog({
               Deadline <span className="text-red-500">*</span>
             </Label>
             <Input
+              className={FEILD_CLASS}
               type="date"
               value={form.deadline}
               onChange={(e) => {
