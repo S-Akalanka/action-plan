@@ -107,7 +107,7 @@ export function MyPlanTaskRow({
           <Switch
             checked={task.active}
             onCheckedChange={onToggleActive}
-            disabled={readOnly || isLocked}
+            disabled={readOnly}
             aria-label="Toggle in progress"
           />
           {isAdHoc && (
@@ -131,6 +131,7 @@ export function MyPlanTaskRow({
         </div>
       </div>
 
+      {/* Read-only comment preview (past week, already-frozen instance) */}
       {comment && !isLocked && (
         <div className="ml-9 flex items-start gap-1.5 text-xs text-red-600">
           <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
@@ -138,6 +139,9 @@ export function MyPlanTaskRow({
         </div>
       )}
 
+      {/* Forced excuse — this task rolled over incomplete past its deadline
+          with no comment on the previous instance. Row is locked until
+          submitted; submitting PATCHes the PREVIOUS instance, not this one. */}
       {isLocked && (
         <div className="ml-9 rounded-lg border border-red-200 bg-red-50 p-3">
           <p className="mb-2 text-xs font-semibold text-red-700">

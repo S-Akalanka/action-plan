@@ -42,26 +42,29 @@ function toDateParam(d: Date) {
 }
 
 const mapMerged = (tasksData: any[], instancesData: any[]) =>
-  tasksData.map((task: any) => {
-    const instance = instancesData.find((i: any) => i.taskId === task.id);
-    return {
-      id: task.id,
-      instanceId: instance?.id,
-      teamId: task.teamId,
-      desc: task.description,
-      details: task.details ?? "",
-      deadline: task.deadline,
-      source: task.source,
-      category: CATEGORY_MAP[task.category] ?? task.category,
-      kpi: task.kpiReference ?? "",
-      frequency: task.frequency,
-      done: instance?.status === "COMPLETE",
-      active: instance?.isActivated ?? false,
-      completedAt: instance?.completedAt ?? undefined,
-      comment: instance?.comment ?? null,
-      needsExcuseForInstanceId: instance?.needsExcuseForInstanceId ?? null,
-    };
-  });
+  tasksData
+    .map((task: any) => {
+      const instance = instancesData.find((i: any) => i.taskId === task.id);
+      if (!instance) return null; // not due this week — skip entirely
+      return {
+        id: task.id,
+        instanceId: instance.id,
+        teamId: task.teamId,
+        desc: task.description,
+        details: task.details ?? "",
+        deadline: task.deadline,
+        source: task.source,
+        category: CATEGORY_MAP[task.category] ?? task.category,
+        kpi: task.kpiReference ?? "",
+        frequency: task.frequency,
+        done: instance.status === "COMPLETE",
+        active: instance.isActivated ?? false,
+        completedAt: instance.completedAt ?? undefined,
+        comment: instance.comment ?? null,
+        needsExcuseForInstanceId: instance.needsExcuseForInstanceId ?? null,
+      };
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null);
 
 export default function MyPlanPage() {
   const queryClient = useQueryClient();
@@ -241,7 +244,7 @@ export default function MyPlanPage() {
   const toggleActive = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task || (task as any).needsExcuseForInstanceId) return;
+    if (!task) return;
     const instanceId = (task as any).instanceId;
     if (!instanceId) return;
     toggleActiveMutation.mutate({ instanceId, nextActive: !task.active });
@@ -363,4 +366,3 @@ export default function MyPlanPage() {
     </main>
   );
 }
-

@@ -35,15 +35,25 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     enabled: !!session?.user,
   });
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (myTeams.length > 0 && selectedTeamId === null) {
+    if (myTeams.length > 0 && !isInitialized) {
       setSelectedTeamId(myTeams[0].id);
+      setIsInitialized(true);
     }
-  }, [myTeams, selectedTeamId]);
+  }, [myTeams, isInitialized]);
 
   return (
     <TeamContext.Provider
-      value={{ myTeams, loadingTeams, selectedTeamId, setSelectedTeamId, activeWeek, setActiveWeek }}
+      value={{
+        myTeams,
+        loadingTeams,
+        selectedTeamId,
+        setSelectedTeamId,
+        activeWeek,
+        setActiveWeek,
+      }}
     >
       {children}
     </TeamContext.Provider>
@@ -57,4 +67,3 @@ export function useTeam() {
   }
   return context;
 }
-
