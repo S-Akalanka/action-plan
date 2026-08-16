@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { WeekSelector } from "@/components/ui/week-selector";
 import { SummaryStrip } from "@/components/my-plan/summary-strip";
@@ -38,33 +40,57 @@ function getMonday(d: Date) {
 }
 
 function toDateParam(d: Date) {
-  return d.toISOString().split("T")[0];
+  // Build from local Y/M/D components — toISOString() converts to UTC,
+  // which rolls local midnight back to the previous calendar day in any
+  // positive-UTC-offset timezone.
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-const mapMerged = (tasksData: any[], instancesData: any[]) =>
-  tasksData
-    .map((task: any) => {
-      const instance = instancesData.find((i: any) => i.taskId === task.id);
-      if (!instance) return null; // not due this week — skip entirely
-      return {
-        id: task.id,
-        instanceId: instance.id,
-        teamId: task.teamId,
-        desc: task.description,
-        details: task.details ?? "",
-        deadline: task.deadline,
-        source: task.source,
-        category: CATEGORY_MAP[task.category] ?? task.category,
-        kpi: task.kpiReference ?? "",
-        frequency: task.frequency,
-        done: instance.status === "COMPLETE",
-        active: instance.isActivated ?? false,
-        completedAt: instance.completedAt ?? undefined,
-        comment: instance.comment ?? null,
-        needsExcuseForInstanceId: instance.needsExcuseForInstanceId ?? null,
-      };
-    })
-    .filter((t): t is NonNullable<typeof t> => t !== null);
+async function parseOrThrow(res: Response) {
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.error ?? `Request failed (${res.status})`);
+  }
+  return data;
+}
+
+// UPDATED: instancesData may now contain TWO items for the same taskId —
+// the fresh current-week instance (isOverdue: false) and an unresolved
+// previous-week instance (isOverdue: true) needing a comment. Both become
+// separate rows, using instance.id as the row key (not task.id), since
+// task.id is no longer unique across the merged list.
+const mapMerged = (tasksData: any[], instancesData: any[]) => {
+  const rows: any[] = [];
+
+  for (const instance of instancesData) {
+    const task = tasksData.find((t: any) => t.id === instance.taskId);
+    if (!task) continue;
+
+    rows.push({
+      id: instance.id, // row key — instance id, not task id (can repeat now)
+      taskId: task.id,
+      instanceId: instance.id,
+      teamId: task.teamId,
+      desc: task.description,
+      details: task.details ?? "",
+      deadline: task.deadline,
+      source: task.source,
+      category: CATEGORY_MAP[task.category] ?? task.category,
+      kpi: task.kpiReference ?? "",
+      frequency: task.frequency,
+      done: instance.status === "COMPLETE",
+      active: instance.isActivated ?? false,
+      completedAt: instance.completedAt ?? undefined,
+      comment: instance.comment ?? null,
+      isOverdue: instance.isOverdue ?? false,
+    });
+  }
+
+  return rows;
+};
 
 export default function MyPlanPage() {
   const queryClient = useQueryClient();
@@ -88,8 +114,8 @@ export default function MyPlanPage() {
           fetch(`/api/teams/${selectedTeamId}/tasks`),
           fetch(`/api/teams/${selectedTeamId}/instances?week=${weekParam}`),
         ]);
-        const tasksData = await tasksRes.json();
-        const instancesData = await instancesRes.json();
+        const tasksData = await parseOrThrow(tasksRes);
+        const instancesData = await parseOrThrow(instancesRes);
         return mapMerged(tasksData, instancesData);
       } else {
         const fetchPromises = myTeams.map(async (team) => {
@@ -97,8 +123,8 @@ export default function MyPlanPage() {
             fetch(`/api/teams/${team.id}/tasks`),
             fetch(`/api/teams/${team.id}/instances?week=${weekParam}`),
           ]);
-          const tasksData = await tasksRes.json();
-          const instancesData = await instancesRes.json();
+          const tasksData = await parseOrThrow(tasksRes);
+          const instancesData = await parseOrThrow(instancesRes);
           if (!Array.isArray(tasksData) || !Array.isArray(instancesData)) return [];
           return mapMerged(tasksData, instancesData);
         });
@@ -121,9 +147,10 @@ export default function MyPlanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextDone ? "COMPLETE" : "INCOMPLETE" }),
       });
-      return res.json();
+      return parseOrThrow(res);
     },
     onSuccess: invalidatePlan,
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update task status"),
   });
 
   const toggleActiveMutation = useMutation({
@@ -133,9 +160,10 @@ export default function MyPlanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActivated: nextActive }),
       });
-      return res.json();
+      return parseOrThrow(res);
     },
     onSuccess: invalidatePlan,
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update task progress"),
   });
 
   const submitExcuseMutation = useMutation({
@@ -145,16 +173,19 @@ export default function MyPlanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comment }),
       });
-      return res.json();
+      return parseOrThrow(res);
     },
     onSuccess: invalidatePlan,
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to submit excuse"),
   });
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+      await parseOrThrow(res);
     },
     onSuccess: invalidatePlan,
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete task"),
   });
 
   const saveEditMutation = useMutation({
@@ -167,21 +198,24 @@ export default function MyPlanPage() {
       data: { desc: string; details: string; kpi: string; comment: string };
       instanceId?: string;
     }) => {
-      await fetch(`/api/tasks/${id}`, {
+      const taskRes = await fetch(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: data.desc, details: data.details, kpiReference: data.kpi }),
       });
+      await parseOrThrow(taskRes);
 
       if (instanceId) {
-        await fetch(`/api/instances/${instanceId}`, {
+        const instanceRes = await fetch(`/api/instances/${instanceId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ comment: data.comment }),
         });
+        await parseOrThrow(instanceRes);
       }
     },
     onSuccess: invalidatePlan,
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to save task"),
   });
 
   const addTaskMutation = useMutation({
@@ -205,23 +239,25 @@ export default function MyPlanPage() {
           source: "ADHOC",
         }),
       });
-      return res.json();
+      return parseOrThrow(res);
     },
     onSuccess: () => {
       invalidatePlan();
       setAdding(false);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add task"),
   });
 
   const overallPercent = useMemo(() => {
-    if (tasks.length === 0) return 0;
-    return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100);
+    const currentOnly = tasks.filter((t) => !(t as any).isOverdue);
+    if (currentOnly.length === 0) return 0;
+    return Math.round((currentOnly.filter((t) => t.done).length / currentOnly.length) * 100);
   }, [tasks]);
 
   const categoryStats = useMemo(
     () =>
       CATEGORIES.map((cat) => {
-        const catTasks = tasks.filter((t) => t.category === cat.key);
+        const catTasks = tasks.filter((t) => t.category === cat.key && !(t as any).isOverdue);
         return {
           key: cat.key,
           icon: cat.icon,
@@ -232,10 +268,11 @@ export default function MyPlanPage() {
     [tasks]
   );
 
+  // Overdue rows are excuse-only — no complete/active toggling on them.
   const toggle = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task || (task as any).needsExcuseForInstanceId) return;
+    if (!task || (task as any).isOverdue) return;
     const instanceId = (task as any).instanceId;
     if (!instanceId) return;
     toggleMutation.mutate({ instanceId, nextDone: !task.done });
@@ -244,14 +281,14 @@ export default function MyPlanPage() {
   const toggleActive = (id: string) => {
     if (!isCurrentWeek) return;
     const task = tasks.find((t) => t.id === id);
-    if (!task) return;
+    if (!task || (task as any).isOverdue) return;
     const instanceId = (task as any).instanceId;
     if (!instanceId) return;
     toggleActiveMutation.mutate({ instanceId, nextActive: !task.active });
   };
 
-  const submitExcuse = (needsExcuseForInstanceId: string, comment: string) => {
-    submitExcuseMutation.mutate({ instanceId: needsExcuseForInstanceId, comment });
+  const submitExcuse = (instanceId: string, comment: string) => {
+    submitExcuseMutation.mutate({ instanceId, comment });
   };
 
   const deleteTask = (id: string) => {
@@ -266,7 +303,7 @@ export default function MyPlanPage() {
 
   const saveEdit = (id: string, data: { desc: string; details: string; kpi: string; comment: string }) => {
     const task = tasks.find((t) => t.id === id);
-    saveEditMutation.mutate({ id, data, instanceId: (task as any)?.instanceId });
+    saveEditMutation.mutate({ id: (task as any)?.taskId ?? id, data, instanceId: (task as any)?.instanceId });
   };
 
   const addTask = (data: {
@@ -363,6 +400,8 @@ export default function MyPlanPage() {
         task={editingTask}
         onSave={saveEdit}
       />
+
+      <Toaster />
     </main>
   );
 }

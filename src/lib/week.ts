@@ -7,15 +7,29 @@ export function getCurrentWeekStart(): Date {
   return monday;
 }
 
+function mondayOf(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 // Now requires deadline — every Task has one (required field). A task is
 // never due for a week that starts after its deadline has passed,
 // regardless of frequency. This applies to ONCE tasks too: if the
 // deadline has already passed and no instance was ever completed, no
 // new instance gets created — it's simply overdue, not regenerated forever.
+//
+// createdAt anchors BI_WEEKLY's every-other-week cadence to the week the
+// task was created — without an anchor there's no way to tell an "on"
+// week from an "off" one.
 export function isTaskDueForWeek(
   frequency: string,
   weekStart: Date,
-  deadline: Date
+  deadline: Date,
+  createdAt: Date
 ): boolean {
   // Deadline check first — nothing is due once its deadline has passed,
   // no matter what frequency says.
@@ -28,7 +42,15 @@ export function isTaskDueForWeek(
     return true;
   }
 
-  if (frequency === "WEEKLY" || frequency === "BI_WEEKLY") return true;
+  if (frequency === "WEEKLY") return true;
+
+  if (frequency === "BI_WEEKLY") {
+    const taskStartWeek = mondayOf(createdAt);
+    const weeksSinceStart = Math.round(
+      (weekStart.getTime() - taskStartWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)
+    );
+    return weeksSinceStart >= 0 && weeksSinceStart % 2 === 0;
+  }
 
   const dayOfMonth = weekStart.getDate();
   const isFirstWeekOfMonth = dayOfMonth <= 7;
