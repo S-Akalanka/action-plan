@@ -59,15 +59,27 @@ export async function PATCH(
     updateData.isActivated = body.isActivated;
   }
 
-  if (body.comment !== undefined) {
-    updateData.comment = body.comment;
+  // `comment` is not a scalar column on TaskInstance — comments live in a
+  // separate Comment model (see /api/instances/[instanceId]/comments).
+  // A submitted excuse/comment becomes a new Comment row rather than an
+  // update to a field that doesn't exist.
+  if (body.comment !== undefined && body.comment.trim()) {
+    await prisma.comment.create({
+      data: {
+        taskInstanceId: instanceId,
+        authorId: session.user.id,
+        body: body.comment.trim(),
+      },
+    });
   }
 
-  const updated = await prisma.taskInstance.update({
-    where: { id: instanceId },
-    data: updateData,
-  });
+  const updated =
+    Object.keys(updateData).length > 0
+      ? await prisma.taskInstance.update({
+          where: { id: instanceId },
+          data: updateData,
+        })
+      : instance;
 
   return NextResponse.json(updated);
 }
-

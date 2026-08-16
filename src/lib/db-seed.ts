@@ -6,7 +6,9 @@ const MAX_WEEKS_AGO = WEEK_OFFSETS_OLDEST_FIRST[0];
 
 function mondayOf(weeksAgo: number): Date {
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + 1 - weeksAgo * 7); // Monday of that week
+  const day = d.getDay(); // 0 = Sunday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) - weeksAgo * 7;
+  d.setDate(diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -293,10 +295,6 @@ export async function seedDatabase() {
     // carried forward on reset — see BRD User Journey 6). Current week is
     // always INCOMPLETE, same rule as everything else this week.
     if (task.source === "ADHOC") {
-      const weekNum = weekNumberFor(0);
-      const comments = [
-        { authorId: userAdmin.id, body: `Week ${weekNum} of ${weekNumberFor(0)} (${currentWeekStart.toDateString()}).` },
-      ];
       await prisma.taskInstance.create({
         data: {
           taskId: created.id,
@@ -305,11 +303,9 @@ export async function seedDatabase() {
           isActivated: true,
           completedAt: null,
           completedById: null,
-          comments: { create: comments },
         },
       });
       instanceCount++;
-      commentCount += comments.length;
       continue;
     }
 
@@ -344,15 +340,11 @@ export async function seedDatabase() {
       // app's own "not yet generated this week" state can be validated.
       if (isCurrentWeek && skipCurrentWeek) continue;
 
-      const weekNum = weekNumberFor(weeksAgo);
-
       const weekPattern = profile[weeksAgo] ?? "INCOMPLETE";
       const status: "COMPLETE" | "INCOMPLETE" = weekPattern === "COMPLETE" ? "COMPLETE" : "INCOMPLETE";
       const isActivated = weekPattern === "IN_PROGRESS";
 
-      const comments: { authorId: string; body: string }[] = [
-        { authorId: userAdmin.id, body: `Week ${weekNum} of ${weekNumberFor(0)} (${date.toDateString()}).` },
-      ];
+      const comments: { authorId: string; body: string }[] = [];
 
       // Past week still INCOMPLETE has missed its window — needs an excuse,
       // but only for some tasks (see explainOverdue above); others are left
