@@ -4,20 +4,27 @@ import { prisma } from "./prisma";
 const WEEK_OFFSETS_OLDEST_FIRST = [4, 3, 2, 1, 0];
 const MAX_WEEKS_AGO = WEEK_OFFSETS_OLDEST_FIRST[0];
 
+// All dates written to weekStartDate / deadline are built as UTC midnight
+// directly (Date.UTC), never via new Date() + setHours(0,0,0,0) — the
+// latter is a LOCAL-midnight Date, which serializes through UTC on write
+// to a Prisma @db.Date column and can land on the wrong calendar day
+// depending on the local/UTC offset at the moment the seed runs.
+function toUtcMidnight(y: number, m: number, d: number): Date {
+  return new Date(Date.UTC(y, m, d));
+}
+
 function mondayOf(weeksAgo: number): Date {
-  const d = new Date();
-  const day = d.getDay(); // 0 = Sunday
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) - weeksAgo * 7;
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1) - weeksAgo * 7;
+  const local = new Date(now.getFullYear(), now.getMonth(), diff);
+  return toUtcMidnight(local.getFullYear(), local.getMonth(), local.getDate());
 }
 
 function daysFromToday(days: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const now = new Date();
+  const local = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+  return toUtcMidnight(local.getFullYear(), local.getMonth(), local.getDate());
 }
 
 // Week 1 = oldest seeded week, Week 5 = current week - matches
@@ -305,24 +312,18 @@ export async function seedDatabase() {
           comment: null,
           commentedAt: null,
           commentedById: null,
+          createdAt: currentWeekStart,
         },
       });
       instanceCount++;
       continue;
     }
 
-    // Standard tasks get an instance in every past week where they were due:
-    // WEEKLY -> every week, MONTHLY -> every 4th week, QUARTERLY -> oldest
-    // week only (out of a 5-week window, that's the closest stand-in for
-    // "once a quarter").
     const taskIdx = standardTaskIndex;
     const profile = isPastDeadline
       ? PAST_DEADLINE_PROFILE
       : WEEK_PROFILES[taskIdx % WEEK_PROFILES.length];
     const skipCurrentWeek = !isPastDeadline && taskIdx % SKIP_CURRENT_WEEK_EVERY_NTH === 0;
-    // Not every incomplete "week before current" instance gets an excuse
-    // comment - leaving some blank lets the app's own "comment required
-    // once overdue" validation actually be exercised against real gaps.
     const explainOverdue = isPastDeadline ? true : taskIdx % 2 === 0;
     standardTaskIndex++;
 
@@ -338,8 +339,6 @@ export async function seedDatabase() {
 
       const isCurrentWeek = weeksAgo === 0;
 
-      // Left "empty" - no instance at all - for a subset of tasks so the
-      // app's own "not yet generated this week" state can be validated.
       if (isCurrentWeek && skipCurrentWeek) continue;
 
       const weekPattern = profile[weeksAgo] ?? "INCOMPLETE";
@@ -388,6 +387,7 @@ export async function seedDatabase() {
           comment,
           commentedAt,
           commentedById,
+          createdAt: date,
         },
       });
       instanceCount++;

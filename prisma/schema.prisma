@@ -123,6 +123,7 @@ model TaskInstance {
   completedAt     DateTime?
   completedById   String?
   completedBy     User?     @relation("InstanceCompleter", fields: [completedById], references: [id])
+  createdAt       DateTime  @default(now())
 
   @@unique([taskId, weekStartDate])
   @@index([weekStartDate])

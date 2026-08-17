@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
     const tasksNeedingInstances: string[] = [];
     for (const task of activeTasks) {
-      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline)) {
+      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline, task.createdAt)) {
         tasksNeedingInstances.push(task.id);
       }
     }
@@ -33,6 +33,7 @@ export async function GET(req: Request) {
         data: tasksNeedingInstances.map((taskId) => ({
           taskId,
           weekStartDate: weekStart,
+          createdAt: new Date(),
         })),
         skipDuplicates: true,
       });

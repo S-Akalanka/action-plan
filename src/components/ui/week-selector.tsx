@@ -3,18 +3,16 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function getMonday(d: Date) {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  date.setDate(diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay();
+  const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff));
 }
 
 function formatRange(weekStart: Date) {
-  const end = new Date(weekStart);
-  end.setDate(end.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const end = new Date(weekStart.getTime());
+  end.setUTCDate(end.getUTCDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   return `${fmt(weekStart)} – ${fmt(end)}`;
 }
 
@@ -29,14 +27,14 @@ export function WeekSelector({
   const isCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
   const goToPrevWeek = () => {
-    const prev = new Date(weekStart);
-    prev.setDate(prev.getDate() - 7);
+    const prev = new Date(weekStart.getTime());
+    prev.setUTCDate(prev.getUTCDate() - 7);
     onChange(prev);
   };
 
   const goToNextWeek = () => {
-    const next = new Date(weekStart);
-    next.setDate(next.getDate() + 7);
+    const next = new Date(weekStart.getTime());
+    next.setUTCDate(next.getUTCDate() + 7);
     onChange(next);
   };
 

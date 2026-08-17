@@ -91,6 +91,7 @@ export async function POST(
     data: {
       taskId: task.id,
       weekStartDate: getCurrentWeekStart(),
+      createdAt: new Date(),
     },
   });
 

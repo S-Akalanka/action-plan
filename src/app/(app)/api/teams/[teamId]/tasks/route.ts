@@ -86,7 +86,8 @@ export async function POST(
     const instance = await prisma.taskInstance.create({
       data: { 
         taskId: task.id, 
-        weekStartDate: getCurrentWeekStart() 
+        weekStartDate: getCurrentWeekStart(),
+        createdAt: new Date(),
       },
     });
     

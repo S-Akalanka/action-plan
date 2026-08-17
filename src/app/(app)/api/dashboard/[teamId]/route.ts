@@ -40,6 +40,7 @@ export async function GET(
         data: tasksNeedingInstances.map((tId) => ({
           taskId: tId,
           weekStartDate: weekStart,
+          createdAt: new Date(),
         })),
         skipDuplicates: true,
       });

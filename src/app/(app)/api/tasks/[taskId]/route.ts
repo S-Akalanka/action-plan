@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
+import type { Category, Frequency } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+
+const CATEGORY_TO_ENUM: Record<string, Category> = {
+  Finance: "FINANCE",
+  Customer: "CUSTOMER",
+  "Process/Tech": "PROCESS_TECH",
+  People: "PEOPLE",
+};
+
+const FREQUENCY_TO_ENUM: Record<string, Frequency> = {
+  Once: "ONCE",
+  Weekly: "WEEKLY",
+  "Bi-weekly": "BI_WEEKLY",
+  Monthly: "MONTHLY",
+  Quarterly: "QUARTERLY",
+};
 
 const updateTaskSchema = z.object({
   description: z.string().trim().optional(),
@@ -22,13 +38,17 @@ export async function PATCH(
     const rawBody = await req.json();
     const result = updateTaskSchema.safeParse(rawBody);
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid payload", details: result.error.errors }, { status: 400 });
+      return NextResponse.json({ error: "Invalid payload", details: result.error.issues }, { status: 400 });
     }
 
-    // Update task with validated fields
+    const { category, frequency, ...rest } = result.data;
     const updated = await prisma.task.update({
       where: { id: taskId },
-      data: result.data,
+      data: {
+        ...rest,
+        ...(category ? { category: CATEGORY_TO_ENUM[category] ?? (category as Category) } : {}),
+        ...(frequency ? { frequency: FREQUENCY_TO_ENUM[frequency] ?? (frequency as Frequency) } : {}),
+      },
     });
     return NextResponse.json(updated);
   } catch (error) {

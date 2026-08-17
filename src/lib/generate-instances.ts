@@ -23,6 +23,7 @@ export async function generateInstancesForWeek(weekStart: Date): Promise<number>
     data: tasksNeedingInstances.map((task) => ({
       taskId: task.id,
       weekStartDate: weekStart,
+      createdAt: new Date(),
     })),
     skipDuplicates: true, // safe to call more than once for the same week
   });
