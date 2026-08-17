@@ -1,50 +1,53 @@
-// app/api/instances/[instanceId]/comments/route.ts
-// GET  /api/instances/[instanceId]/comments  — full history, newest first
-// POST /api/instances/[instanceId]/comments  — add a new comment
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
 import { canAccessTeam } from "@/lib/auth";
 
+// GET /api/instances/[instanceId]/comments — Retrieve the single comment for an instance
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ instanceId: string }> }
 ) {
   const { instanceId } = await params;
 
+  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const comments = await prisma.comment.findMany({
-    where: { taskInstanceId: instanceId },
-    orderBy: { createdAt: "desc" },
-    include: { author: { select: { name: true } } },
+  // Fetch instance comment with commenter name
+  const instance = await prisma.taskInstance.findUnique({
+    where: { id: instanceId },
+    include: { commentedBy: { select: { name: true } } },
   });
 
-  return NextResponse.json(
-    comments.map((c) => ({
-      id: c.id,
-      body: c.body,
-      authorName: c.author.name,
-      createdAt: c.createdAt,
-    }))
-  );
+  if (!instance) {
+    return NextResponse.json({ error: "Instance not found" }, { status: 404 });
+  }
+
+  // Return comment metadata
+  return NextResponse.json({
+    comment: instance.comment,
+    commentedAt: instance.commentedAt,
+    commentedByName: instance.commentedBy?.name ?? null,
+  });
 }
 
-export async function POST(
+// PUT /api/instances/[instanceId]/comments — Set or replace the instance comment
+export async function PUT(
   req: Request,
   { params }: { params: Promise<{ instanceId: string }> }
 ) {
   const { instanceId } = await params;
 
+  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  // Fetch instance and related task
   const instance = await prisma.taskInstance.findUnique({
     where: { id: instanceId },
     include: { task: true },
@@ -54,32 +57,32 @@ export async function POST(
     return NextResponse.json({ error: "Instance not found" }, { status: 404 });
   }
 
+  // Verify user has access to task's team
   const allowed = await canAccessTeam(session.user.id, instance.task.teamId);
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Validate comment body
   const body = await req.json();
   if (!body.body?.trim()) {
     return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
   }
 
-  const comment = await prisma.comment.create({
+  // Update instance comment (scalar field)
+  const updated = await prisma.taskInstance.update({
+    where: { id: instanceId },
     data: {
-      taskInstanceId: instanceId,
-      authorId: session.user.id,
-      body: body.body.trim(),
+      comment: body.body.trim(),
+      commentedAt: new Date(),
+      commentedById: session.user.id,
     },
-    include: { author: { select: { name: true } } },
+    include: { commentedBy: { select: { name: true } } },
   });
 
-  return NextResponse.json(
-    {
-      id: comment.id,
-      body: comment.body,
-      authorName: comment.author.name,
-      createdAt: comment.createdAt,
-    },
-    { status: 201 }
-  );
+  return NextResponse.json({
+    comment: updated.comment,
+    commentedAt: updated.commentedAt,
+    commentedByName: updated.commentedBy?.name ?? null,
+  });
 }

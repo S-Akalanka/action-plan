@@ -10,17 +10,20 @@ function toUtcDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+// PATCH /api/instances/[instanceId] — Update instance status, activation, or comment
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ instanceId: string }> }
 ) {
   const { instanceId } = await params;
 
+  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  // Fetch instance and related task
   const instance = await prisma.taskInstance.findUnique({
     where: { id: instanceId },
     include: { task: true },
@@ -30,11 +33,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Instance not found" }, { status: 404 });
   }
 
+  // Verify user has access to task's team
   const allowed = await canAccessTeam(session.user.id, instance.task.teamId);
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Validate request body
   const rawBody = await req.json();
   const parseResult = patchInstanceSchema.safeParse(rawBody);
   if (!parseResult.success) {
@@ -42,10 +47,12 @@ export async function PATCH(
   }
 
   const body = parseResult.data;
+  // Determine if viewing current week
   const currentWeekStart = getCurrentWeekStart();
   const isCurrentWeek =
     toUtcDateKey(instance.weekStartDate) === toUtcDateKey(currentWeekStart);
 
+  // Enforce read-only on past weeks (prevent status/activation changes)
   if ((body.status !== undefined || body.isActivated !== undefined) && !isCurrentWeek) {
     return NextResponse.json(
       { error: "This week has passed and is read-only." },
@@ -53,30 +60,26 @@ export async function PATCH(
     );
   }
 
+  // Build update payload
   const updateData: Prisma.TaskInstanceUpdateInput = {};
 
+  // Update status and mark completion metadata if transitioning to COMPLETE
   if (body.status !== undefined) {
     updateData.status = body.status;
     updateData.completedAt = body.status === "COMPLETE" ? new Date() : null;
     updateData.completedById = body.status === "COMPLETE" ? session.user.id : null;
   }
 
+  // Update activation flag
   if (body.isActivated !== undefined) {
     updateData.isActivated = body.isActivated;
   }
 
-  // `comment` is not a scalar column on TaskInstance — comments live in a
-  // separate Comment model (see /api/instances/[instanceId]/comments).
-  // A submitted excuse/comment becomes a new Comment row rather than an
-  // update to a field that doesn't exist.
+  // Update single comment (scalar field on TaskInstance, not a separate row)
   if (body.comment !== undefined && body.comment.trim()) {
-    await prisma.comment.create({
-      data: {
-        taskInstanceId: instanceId,
-        authorId: session.user.id,
-        body: body.comment.trim(),
-      },
-    });
+    updateData.comment = body.comment.trim();
+    updateData.commentedAt = new Date();
+    updateData.commentedById = session.user.id;
   }
 
   const updated =
