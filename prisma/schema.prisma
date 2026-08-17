@@ -51,7 +51,7 @@ model User {
   memberships    Membership[]
   createdTasks   Task[]         @relation("TaskCreator")
   completedByMe  TaskInstance[] @relation("InstanceCompleter")
-  comments       Comment[]      @relation("CommentAuthor")
+  commentedOn    TaskInstance[] @relation("InstanceCommenter")
 
   createdAt DateTime @default(now())
 
@@ -114,7 +114,10 @@ model TaskInstance {
   task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   weekStartDate   DateTime  @db.Date
-  comments        Comment[]
+  comment         String?
+  commentedAt     DateTime?
+  commentedById   String?
+  commentedBy     User?     @relation("InstanceCommenter", fields: [commentedById], references: [id])
   isActivated     Boolean   @default(false)
   status          Status    @default(INCOMPLETE)
   completedAt     DateTime?
@@ -124,14 +127,4 @@ model TaskInstance {
   @@unique([taskId, weekStartDate])
   @@index([weekStartDate])
   @@map("task_instances")
-}
-
-model Comment {
-  id             String       @id @default(cuid())
-  taskInstanceId String
-  taskInstance   TaskInstance @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
-  authorId       String
-  author         User         @relation("CommentAuthor", fields: [authorId], references: [id])
-  body           String
-  createdAt      DateTime     @default(now())
 }

@@ -20,7 +20,7 @@ function daysFromToday(days: number): Date {
   return d;
 }
 
-// Week 1 = oldest seeded week, Week 5 = current week — matches
+// Week 1 = oldest seeded week, Week 5 = current week - matches
 // WEEK_OFFSETS_OLDEST_FIRST so it's easy to eyeball in the UI.
 function weekNumberFor(weeksAgo: number): number {
   return MAX_WEEKS_AGO - weeksAgo + 1;
@@ -50,29 +50,29 @@ const OVERDUE_COMMENTS = [
   "Delayed due to competing priorities this week.",
   "Data source was unavailable, following up.",
   "Owner was out; picking back up next cycle.",
-  "Carried over — deprioritized for an urgent request.",
+  "Carried over - deprioritized for an urgent request.",
 ];
 
 const CARRYOVER_COMMENTS = [
   "Still catching up on last week's item before starting this week's.",
-  "Picking this up now — last week's instance slipped.",
+  "Picking this up now - last week's instance slipped.",
   "Continuing from last week; wasn't finished in time.",
 ];
 
 const LATE_COMPLETION_COMMENTS = [
-  "Finished this, but past the deadline — resourcing was tight this cycle.",
+  "Finished this, but past the deadline - resourcing was tight this cycle.",
   "Completed late; waiting on a dependency that came through after the deadline.",
   "Done now. Missed the deadline due to an unplanned outage.",
 ];
 
-// Hardcoded status per task, rotating across a few profiles — no randomness,
+// Hardcoded status per task, rotating across a few profiles - no randomness,
 // so every seed run is identical, but not every task looks the same:
 //  - Profile 0: Week 4 (weeksAgo 1) INCOMPLETE -> triggers a carryover
 //    comment on the current week's instance.
 //  - Profile 1: Week 4 COMPLETE -> no carryover, current week starts clean.
 //  - Profile 2: different early-week mix, Week 4 INCOMPLETE.
 // Current week (weeksAgo 0) is always INCOMPLETE when an instance exists at
-// all (BRD Journey 6: a freshly reset week starts unmarked) — but see
+// all (BRD Journey 6: a freshly reset week starts unmarked) - but see
 // SKIP_CURRENT_WEEK_EVERY_NTH below: some tasks get no current-week instance
 // at all, to validate the "not yet generated" state.
 type WeekStatus = "COMPLETE" | "IN_PROGRESS" | "INCOMPLETE";
@@ -93,7 +93,7 @@ const PAST_DEADLINE_PROFILE: Record<number, WeekStatus> = {
 };
 
 // Every 4th standard task skips its current-week instance entirely (left
-// "empty" — no TaskInstance row at all) rather than an INCOMPLETE one.
+// "empty" - no TaskInstance row at all) rather than an INCOMPLETE one.
 const SKIP_CURRENT_WEEK_EVERY_NTH = 4;
 
 function pick<T>(arr: T[]): T {
@@ -103,15 +103,14 @@ function pick<T>(arr: T[]): T {
 export async function seedDatabase() {
   console.log("Resetting and seeding database with teams, users, memberships, and tasks...");
 
-  // 0. Clear existing data — child tables first to respect FK constraints.
-  await prisma.comment.deleteMany({});
+  // 0. Clear existing data - child tables first to respect FK constraints.
   await prisma.taskInstance.deleteMany({});
   await prisma.task.deleteMany({});
   await prisma.membership.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.team.deleteMany({});
 
-  // 1. Teams — all 8, matching the BRD's business units (BU01-04, Engineering,
+  // 1. Teams - all 8, matching the BRD's business units (BU01-04, Engineering,
   // HR & Admin, Finance, Sales & Marketing).
   const teams = [
     { id: "bu01", teamName: "BU01 · North America Retail", description: "NA Retail business unit" },
@@ -128,7 +127,7 @@ export async function seedDatabase() {
     await prisma.team.create({ data: t });
   }
 
-  // 2. Users — microsoftId is a placeholder until real Entra ID login is
+  // 2. Users - microsoftId is a placeholder until real Entra ID login is
   // wired in (lib/session.ts is currently stubbed). Deliberately varied
   // membership counts (1, 2, or 3 teams per user) since real staff often
   // straddle more than one team.
@@ -163,7 +162,7 @@ export async function seedDatabase() {
     data: { microsoftId: "seed-ceo-office", name: "CEO", role: "CEO" },
   });
 
-  // 3. Memberships — deliberately varied: some users on 1 team, some on 2,
+  // 3. Memberships - deliberately varied: some users on 1 team, some on 2,
   // some on 3, so team-switching UI actually has something to switch between.
   const membershipData = [
     // 3 teams
@@ -195,13 +194,13 @@ export async function seedDatabase() {
   // ADMIN and CEO bypass per-team Membership checks via canAccessTeam(),
   // so userAdmin/userCeo don't strictly need rows for every team.
 
-  // 4. Standard Tasks — every team gets multiple tasks across all four
+  // 4. Standard Tasks - every team gets multiple tasks across all four
   // categories (Finance, Customer, Process/Tech, People), plus one ad-hoc
   // example per team. A handful of WEEKLY/MONTHLY/QUARTERLY tasks are
   // flagged pastDeadline so at least a few completions demonstrably land
   // after their Task.deadline, with an excuse comment attached.
   const tasksData = [
-    // BU01 — North America Retail
+    // BU01 - North America Retail
     { teamId: "bu01", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile weekly cash position", kpiReference: "Ledger Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu01", createdById: userAdmin.id, category: "FINANCE" as const, description: "Review store-level markdown spend", kpiReference: "Markdown Budget %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
     { teamId: "bu01", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review top-10 customer health scores", kpiReference: "NPS", frequency: "WEEKLY" as const, source: "STANDARD" as const },
@@ -209,7 +208,7 @@ export async function seedDatabase() {
     { teamId: "bu01", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review store staffing levels", kpiReference: "Coverage %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu01", createdById: userBu01Lead.id, category: "CUSTOMER" as const, description: "Investigate flagged return spike at store #114", kpiReference: "Return Rate %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
-    // BU02 — EMEA Wholesale
+    // BU02 - EMEA Wholesale
     { teamId: "bu02", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile wholesale invoices", kpiReference: "Invoice Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Follow up with distributor accounts", kpiReference: "Response Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review distributor contract renewals", kpiReference: "Renewal Rate %", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
@@ -217,7 +216,7 @@ export async function seedDatabase() {
     { teamId: "bu02", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review regional staffing plan", kpiReference: "Headcount Variance", frequency: "QUARTERLY" as const, source: "STANDARD" as const },
     { teamId: "bu02", createdById: userBu02Lead.id, category: "PROCESS_TECH" as const, description: "Patch customs clearance portal outage", kpiReference: "Uptime %", frequency: "ONCE" as const, source: "ADHOC" as const },
 
-    // BU03 — APAC Retail
+    // BU03 - APAC Retail
     { teamId: "bu03", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile regional FX exposure", kpiReference: "FX Variance %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu03", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Review store-level customer feedback", kpiReference: "CSAT", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu03", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit regional POS integration", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
@@ -225,7 +224,7 @@ export async function seedDatabase() {
     { teamId: "bu03", createdById: userAdmin.id, category: "PEOPLE" as const, description: "Review new-hire onboarding completion", kpiReference: "Onboarding Completion %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu03", createdById: userBu03Lead.id, category: "FINANCE" as const, description: "Chase overdue distributor payment", kpiReference: "DSO", frequency: "ONCE" as const, source: "ADHOC" as const },
 
-    // BU04 — LATAM Distribution
+    // BU04 - LATAM Distribution
     { teamId: "bu04", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile distributor settlements", kpiReference: "Settlement Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu04", createdById: userAdmin.id, category: "CUSTOMER" as const, description: "Follow up on distributor escalations", kpiReference: "Response Time", frequency: "WEEKLY" as const, source: "STANDARD" as const },
     { teamId: "bu04", createdById: userAdmin.id, category: "PROCESS_TECH" as const, description: "Audit logistics tracking system", kpiReference: "Sync Accuracy %", frequency: "MONTHLY" as const, source: "STANDARD" as const },
@@ -292,7 +291,7 @@ export async function seedDatabase() {
     });
 
     // Ad-hoc tasks only ever existed in the current week (they're not
-    // carried forward on reset — see BRD User Journey 6). Current week is
+    // carried forward on reset - see BRD User Journey 6). Current week is
     // always INCOMPLETE, same rule as everything else this week.
     if (task.source === "ADHOC") {
       await prisma.taskInstance.create({
@@ -303,6 +302,9 @@ export async function seedDatabase() {
           isActivated: true,
           completedAt: null,
           completedById: null,
+          comment: null,
+          commentedAt: null,
+          commentedById: null,
         },
       });
       instanceCount++;
@@ -319,7 +321,7 @@ export async function seedDatabase() {
       : WEEK_PROFILES[taskIdx % WEEK_PROFILES.length];
     const skipCurrentWeek = !isPastDeadline && taskIdx % SKIP_CURRENT_WEEK_EVERY_NTH === 0;
     // Not every incomplete "week before current" instance gets an excuse
-    // comment — leaving some blank lets the app's own "comment required
+    // comment - leaving some blank lets the app's own "comment required
     // once overdue" validation actually be exercised against real gaps.
     const explainOverdue = isPastDeadline ? true : taskIdx % 2 === 0;
     standardTaskIndex++;
@@ -336,7 +338,7 @@ export async function seedDatabase() {
 
       const isCurrentWeek = weeksAgo === 0;
 
-      // Left "empty" — no instance at all — for a subset of tasks so the
+      // Left "empty" - no instance at all - for a subset of tasks so the
       // app's own "not yet generated this week" state can be validated.
       if (isCurrentWeek && skipCurrentWeek) continue;
 
@@ -344,24 +346,35 @@ export async function seedDatabase() {
       const status: "COMPLETE" | "INCOMPLETE" = weekPattern === "COMPLETE" ? "COMPLETE" : "INCOMPLETE";
       const isActivated = weekPattern === "IN_PROGRESS";
 
-      const comments: { authorId: string; body: string }[] = [];
+      let comment: string | null = null;
+      let commentedAt: Date | null = null;
+      let commentedById: string | null = null;
 
-      // Past week still INCOMPLETE has missed its window — needs an excuse,
+      // Past week still INCOMPLETE has missed its window - needs an excuse,
       // but only for some tasks (see explainOverdue above); others are left
       // without one on purpose.
       if (status === "INCOMPLETE" && !isCurrentWeek && explainOverdue) {
-        comments.push({ authorId: task.createdById, body: pick(OVERDUE_COMMENTS) });
+        comment = pick(OVERDUE_COMMENTS);
+        commentedAt = new Date();
+        commentedById = task.createdById;
+        commentCount++;
       }
 
       // Last week (weeksAgo === 1) was INCOMPLETE -> this week's instance
       // (weeksAgo === 0) gets a carryover note explaining the backlog.
-      if (isCurrentWeek && previousWeekAgo1Status === "INCOMPLETE") {
-        comments.push({ authorId: task.createdById, body: pick(CARRYOVER_COMMENTS) });
+      if (isCurrentWeek && previousWeekAgo1Status === "INCOMPLETE" && !comment) {
+        comment = pick(CARRYOVER_COMMENTS);
+        commentedAt = new Date();
+        commentedById = task.createdById;
+        commentCount++;
       }
 
       // Completed, but this task's deadline has already passed -> excuse.
-      if (status === "COMPLETE" && isPastDeadline) {
-        comments.push({ authorId: task.createdById, body: pick(LATE_COMPLETION_COMMENTS) });
+      if (status === "COMPLETE" && isPastDeadline && !comment) {
+        comment = pick(LATE_COMPLETION_COMMENTS);
+        commentedAt = new Date();
+        commentedById = task.createdById;
+        commentCount++;
       }
 
       await prisma.taskInstance.create({
@@ -372,17 +385,18 @@ export async function seedDatabase() {
           isActivated,
           completedAt: status === "COMPLETE" ? date : null,
           completedById: status === "COMPLETE" ? task.createdById : null,
-          comments: { create: comments },
+          comment,
+          commentedAt,
+          commentedById,
         },
       });
       instanceCount++;
-      commentCount += comments.length;
 
       if (weeksAgo === 1) previousWeekAgo1Status = status;
     }
   }
 
   console.log(
-    `Seeded ${teams.length} teams, 10 users, ${membershipData.length} memberships, ${tasksData.length} tasks, ${instanceCount} task instances, ${commentCount} comments across ${weekStarts.length} weeks.`
+    `Seeded ${teams.length} teams, 10 users, ${membershipData.length} memberships, ${tasksData.length} tasks, ${instanceCount} task instances across ${weekStarts.length} weeks (${commentCount} have comments).`
   );
 }
