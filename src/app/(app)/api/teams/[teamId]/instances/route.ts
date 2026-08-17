@@ -1,3 +1,20 @@
+// app/api/teams/[teamId]/instances/route.ts
+// GET /api/teams/[teamId]/instances?week=2026-06-29
+//
+// Self-healing: if viewing the CURRENT week and some due tasks have no
+// instance yet (e.g. the scheduled cron hasn't run), this generates them
+// on the fly before returning — same underlying function the real cron
+// route calls. Past weeks are never generated on-demand, since they're
+// frozen/historical by definition.
+//
+// For the current week, any earlier incomplete-uncommented instance is
+// returned as a SEPARATE item in the array (same taskId, isOverdue: true)
+// alongside the fresh current-week instance if one exists — not a pointer
+// field. The frontend renders each as its own row. Not limited to exactly
+// one week back: a task can go overdue by more than one cycle, especially
+// ONCE tasks past their deadline, which never get a new current-week
+// instance to begin with.
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,29 +30,20 @@ const weekQuerySchema = z.object({
     .optional(),
 });
 
-// Parses a YYYY-MM-DD string as a LOCAL calendar date at local midnight.
-// `new Date("2026-06-29")` parses as UTC midnight, which does not match
-// getCurrentWeekStart() unless that also normalizes to UTC — mixing the
-// two silently breaks isViewingCurrentWeek. Confirm getCurrentWeekStart()
-// uses the same (local) convention; if it's UTC-based instead, swap this
-// to Date.UTC(year, month - 1, day) so both sides agree.
+// Parses a YYYY-MM-DD string as UTC midnight, matching getCurrentWeekStart()
+// (see lib/week.ts) — both must agree or isViewingCurrentWeek silently
+// breaks and instances land on the wrong day.
 function parseWeekParam(week: string) {
   const [year, month, day] = week.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
-// GET /api/teams/[teamId]/instances — Fetch task instances for a team for a given week
-// Self-healing: auto-generates missing current-week instances if cron hasn't run
-// For current week: returns fresh instances + overdue instances from earlier weeks
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   const { teamId } = await params;
 
-  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
@@ -63,8 +71,6 @@ export async function GET(
   const currentWeekStart = getCurrentWeekStart();
   const isViewingCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
-  // Self-healing fallback — only for the current week. Safe to call every
-  // time (uses skipDuplicates internally), cheap no-op if cron already ran.
   if (isViewingCurrentWeek) {
     await generateInstancesForWeek(weekStart);
   }

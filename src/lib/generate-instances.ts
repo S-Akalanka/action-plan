@@ -1,9 +1,6 @@
-// lib/generate-instances.ts
-//
-// Single source of truth for "create missing TaskInstance rows for a given
-// week." Called by the real scheduled cron route AND, as a self-healing
-// fallback, by routes that read instances — so if the cron job ever misses
-// a run, the app doesn't silently show nothing.
+// Single source of truth for creating missing TaskInstance rows for a given week.
+// Called by the scheduled cron route and as a self-healing fallback by routes
+// that read instances — prevents silent data gaps if the cron job misses a run.
 
 import { prisma } from "./prisma";
 import { isTaskDueForWeek } from "./week";

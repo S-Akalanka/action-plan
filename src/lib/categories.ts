@@ -1,4 +1,3 @@
-// lib/categories.ts
 import { Landmark, Headset, Cog, Users } from "lucide-react";
 import type { CategoryKey } from "./types";
 import type { LucideIcon } from "lucide-react";

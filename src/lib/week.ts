@@ -1,19 +1,28 @@
+// All week-start dates are built as UTC midnight directly (Date.UTC),
+// never via new Date() + setHours(0,0,0,0). The latter builds a
+// LOCAL-midnight Date; when that gets written to a Prisma @db.Date column
+// it serializes through UTC, and depending on exactly when the code runs
+// relative to the local/UTC offset boundary, the same "today" can come out
+// as different calendar days on different writes. Building the Date at
+// UTC midnight from the start removes that ambiguity everywhere.
+
+function toUtcMidnight(y: number, m: number, d: number): Date {
+  return new Date(Date.UTC(y, m, d));
+}
+
 export function getCurrentWeekStart(): Date {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // back to Monday
-  const monday = new Date(now.setDate(diff));
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const currentDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const day = currentDay.getUTCDay();
+  const diff = currentDay.getUTCDate() - day + (day === 0 ? -6 : 1);
+  return toUtcMidnight(currentDay.getUTCFullYear(), currentDay.getUTCMonth(), diff);
 }
 
 function mondayOf(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const currentDay = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = currentDay.getUTCDay();
+  const diff = currentDay.getUTCDate() - day + (day === 0 ? -6 : 1);
+  return toUtcMidnight(currentDay.getUTCFullYear(), currentDay.getUTCMonth(), diff);
 }
 
 export function isTaskDueForWeek(
@@ -43,13 +52,13 @@ export function isTaskDueForWeek(
     return weeksSinceStart >= 0 && weeksSinceStart % 2 === 0;
   }
 
-  const dayOfMonth = weekStart.getDate();
+  const dayOfMonth = weekStart.getUTCDate();
   const isFirstWeekOfMonth = dayOfMonth <= 7;
 
   if (frequency === "MONTHLY") return isFirstWeekOfMonth;
 
   if (frequency === "QUARTERLY") {
-    const month = weekStart.getMonth();
+    const month = weekStart.getUTCMonth();
     const isQuarterStartMonth = month % 3 === 0;
     return isQuarterStartMonth && isFirstWeekOfMonth;
   }

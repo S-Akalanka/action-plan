@@ -10,20 +10,17 @@ function toUtcDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-// PATCH /api/instances/[instanceId] — Update instance status, activation, or comment
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ instanceId: string }> }
 ) {
   const { instanceId } = await params;
 
-  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  // Fetch instance and related task
   const instance = await prisma.taskInstance.findUnique({
     where: { id: instanceId },
     include: { task: true },
@@ -33,13 +30,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Instance not found" }, { status: 404 });
   }
 
-  // Verify user has access to task's team
   const allowed = await canAccessTeam(session.user.id, instance.task.teamId);
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Validate request body
   const rawBody = await req.json();
   const parseResult = patchInstanceSchema.safeParse(rawBody);
   if (!parseResult.success) {
@@ -47,12 +42,10 @@ export async function PATCH(
   }
 
   const body = parseResult.data;
-  // Determine if viewing current week
   const currentWeekStart = getCurrentWeekStart();
   const isCurrentWeek =
     toUtcDateKey(instance.weekStartDate) === toUtcDateKey(currentWeekStart);
 
-  // Enforce read-only on past weeks (prevent status/activation changes)
   if ((body.status !== undefined || body.isActivated !== undefined) && !isCurrentWeek) {
     return NextResponse.json(
       { error: "This week has passed and is read-only." },
@@ -60,35 +53,67 @@ export async function PATCH(
     );
   }
 
-  // Build update payload
   const updateData: Prisma.TaskInstanceUpdateInput = {};
 
-  // Update status and mark completion metadata if transitioning to COMPLETE
   if (body.status !== undefined) {
     updateData.status = body.status;
     updateData.completedAt = body.status === "COMPLETE" ? new Date() : null;
-    updateData.completedById = body.status === "COMPLETE" ? session.user.id : null;
+    updateData.completedBy =
+      body.status === "COMPLETE"
+        ? { connect: { id: session.user.id } }
+        : { disconnect: true };
   }
 
-  // Update activation flag
   if (body.isActivated !== undefined) {
     updateData.isActivated = body.isActivated;
   }
 
-  // Update single comment (scalar field on TaskInstance, not a separate row)
-  if (body.comment !== undefined && body.comment.trim()) {
-    updateData.comment = body.comment.trim();
+  // `comment` is a scalar column on TaskInstance (single comment per
+  // instance), not a separate Comment model — update in place instead of
+  // creating a Comment row.
+  const isCommenting = body.comment !== undefined && body.comment.trim().length > 0;
+  if (isCommenting) {
+    updateData.comment = body.comment!.trim();
     updateData.commentedAt = new Date();
-    updateData.commentedById = session.user.id;
+    updateData.commentedBy = { connect: { id: session.user.id } };
   }
 
-  const updated =
-    Object.keys(updateData).length > 0
-      ? await prisma.taskInstance.update({
-          where: { id: instanceId },
-          data: updateData,
-        })
-      : instance;
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json(instance);
+  }
+
+  // Commenting on a PAST-week instance resolves it (comment !== null drops
+  // it out of the overdue query) but the task still wasn't done, so spawn a
+  // fresh INCOMPLETE instance for the current week in the same transaction.
+  // Upsert on the (taskId, weekStartDate) unique constraint guards against
+  // duplicates if one was already generated separately (e.g. by the cron /
+  // self-healing fetch).
+  if (isCommenting && !isCurrentWeek) {
+    const [updated] = await prisma.$transaction([
+      prisma.taskInstance.update({ where: { id: instanceId }, data: updateData }),
+      prisma.taskInstance.upsert({
+        where: {
+          taskId_weekStartDate: {
+            taskId: instance.taskId,
+            weekStartDate: currentWeekStart,
+          },
+        },
+        create: {
+          taskId: instance.taskId,
+          weekStartDate: currentWeekStart,
+          status: "INCOMPLETE",
+          createdAt: new Date(),
+        },
+        update: {},
+      }),
+    ]);
+    return NextResponse.json(updated);
+  }
+
+  const updated = await prisma.taskInstance.update({
+    where: { id: instanceId },
+    data: updateData,
+  });
 
   return NextResponse.json(updated);
 }

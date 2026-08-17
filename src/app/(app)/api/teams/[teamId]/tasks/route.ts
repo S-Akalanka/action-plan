@@ -14,7 +14,6 @@ const MOCK_TASKS: Record<string, any[]> = {
   ],
 };
 
-// GET /api/teams/[teamId]/tasks — Retrieve all tasks for a specific team
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
@@ -22,7 +21,6 @@ export async function GET(
   const { teamId } = await params;
 
   try {
-    // Query tasks by team, fallback to mock data on database failure
     const tasks = await prisma.task.findMany({ 
       where: { teamId }, 
       orderBy: { category: "asc" } 
@@ -39,7 +37,6 @@ export async function GET(
   }
 }
 
-// POST /api/teams/[teamId]/tasks — Create an ad-hoc task for a specific team
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
@@ -48,7 +45,6 @@ export async function POST(
   const body = await req.json();
 
   try {
-    // Retrieve authenticated user session
     const session = await auth();
     const createdById = session?.user?.id;
 

@@ -4,18 +4,13 @@ import { prisma } from "./prisma";
 const WEEK_OFFSETS_OLDEST_FIRST = [4, 3, 2, 1, 0];
 const MAX_WEEKS_AGO = WEEK_OFFSETS_OLDEST_FIRST[0];
 
-// All dates written to weekStartDate / deadline are built as UTC midnight
-// directly (Date.UTC), never via new Date() + setHours(0,0,0,0) — the
-// latter is a LOCAL-midnight Date, which serializes through UTC on write
-// to a Prisma @db.Date column and can land on the wrong calendar day
-// depending on the local/UTC offset at the moment the seed runs.
 function toUtcMidnight(y: number, m: number, d: number): Date {
   return new Date(Date.UTC(y, m, d));
 }
 
 function mondayOf(weeksAgo: number): Date {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
+  const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1) - weeksAgo * 7;
   const local = new Date(now.getFullYear(), now.getMonth(), diff);
   return toUtcMidnight(local.getFullYear(), local.getMonth(), local.getDate());
@@ -27,16 +22,9 @@ function daysFromToday(days: number): Date {
   return toUtcMidnight(local.getFullYear(), local.getMonth(), local.getDate());
 }
 
-// Week 1 = oldest seeded week, Week 5 = current week - matches
-// WEEK_OFFSETS_OLDEST_FIRST so it's easy to eyeball in the UI.
 function weekNumberFor(weeksAgo: number): number {
   return MAX_WEEKS_AGO - weeksAgo + 1;
 }
-
-// deadline = the date the task's recursion stops (or, for ONCE tasks, the
-// single due date). Recurring tasks get a deadline well beyond the seeded
-// history window so they stay active; ONCE/ad-hoc tasks get a near-term
-// due date instead.
 function deadlineFor(frequency: "ONCE" | "WEEKLY" | "BI_WEEKLY" | "MONTHLY" | "QUARTERLY"): Date {
   switch (frequency) {
     case "ONCE":
@@ -72,16 +60,6 @@ const LATE_COMPLETION_COMMENTS = [
   "Done now. Missed the deadline due to an unplanned outage.",
 ];
 
-// Hardcoded status per task, rotating across a few profiles - no randomness,
-// so every seed run is identical, but not every task looks the same:
-//  - Profile 0: Week 4 (weeksAgo 1) INCOMPLETE -> triggers a carryover
-//    comment on the current week's instance.
-//  - Profile 1: Week 4 COMPLETE -> no carryover, current week starts clean.
-//  - Profile 2: different early-week mix, Week 4 INCOMPLETE.
-// Current week (weeksAgo 0) is always INCOMPLETE when an instance exists at
-// all (BRD Journey 6: a freshly reset week starts unmarked) - but see
-// SKIP_CURRENT_WEEK_EVERY_NTH below: some tasks get no current-week instance
-// at all, to validate the "not yet generated" state.
 type WeekStatus = "COMPLETE" | "IN_PROGRESS" | "INCOMPLETE";
 const WEEK_PROFILES: Record<number, WeekStatus>[] = [
   { 4: "COMPLETE", 3: "IN_PROGRESS", 2: "COMPLETE", 1: "INCOMPLETE", 0: "INCOMPLETE" },
@@ -89,8 +67,6 @@ const WEEK_PROFILES: Record<number, WeekStatus>[] = [
   { 4: "IN_PROGRESS", 3: "COMPLETE", 2: "COMPLETE", 1: "INCOMPLETE", 0: "INCOMPLETE" },
 ];
 
-// pastDeadline demo tasks always get this profile instead, so their
-// completed-after-deadline scenario shows up reliably every run.
 const PAST_DEADLINE_PROFILE: Record<number, WeekStatus> = {
   4: "COMPLETE",
   3: "COMPLETE",
@@ -99,8 +75,6 @@ const PAST_DEADLINE_PROFILE: Record<number, WeekStatus> = {
   0: "INCOMPLETE",
 };
 
-// Every 4th standard task skips its current-week instance entirely (left
-// "empty" - no TaskInstance row at all) rather than an INCOMPLETE one.
 const SKIP_CURRENT_WEEK_EVERY_NTH = 4;
 
 function pick<T>(arr: T[]): T {
@@ -117,8 +91,6 @@ export async function seedDatabase() {
   await prisma.user.deleteMany({});
   await prisma.team.deleteMany({});
 
-  // 1. Teams - all 8, matching the BRD's business units (BU01-04, Engineering,
-  // HR & Admin, Finance, Sales & Marketing).
   const teams = [
     { id: "bu01", teamName: "BU01 · North America Retail", description: "NA Retail business unit" },
     { id: "bu02", teamName: "BU02 · EMEA Wholesale", description: "EMEA Wholesale business unit" },
@@ -134,10 +106,6 @@ export async function seedDatabase() {
     await prisma.team.create({ data: t });
   }
 
-  // 2. Users - microsoftId is a placeholder until real Entra ID login is
-  // wired in (lib/session.ts is currently stubbed). Deliberately varied
-  // membership counts (1, 2, or 3 teams per user) since real staff often
-  // straddle more than one team.
   const userEngLead = await prisma.user.create({
     data: { microsoftId: "seed-engineering-lead", name: "Engineering Lead", role: "TEAM" },
   });
@@ -169,8 +137,6 @@ export async function seedDatabase() {
     data: { microsoftId: "seed-ceo-office", name: "CEO", role: "CEO" },
   });
 
-  // 3. Memberships - deliberately varied: some users on 1 team, some on 2,
-  // some on 3, so team-switching UI actually has something to switch between.
   const membershipData = [
     // 3 teams
     { userId: userEngLead.id, teamId: "engineering" },
@@ -181,14 +147,12 @@ export async function seedDatabase() {
     { userId: userFloatAnalyst.id, teamId: "bu03" },
     { userId: userFloatAnalyst.id, teamId: "bu04" },
 
-    // 2 teams
     { userId: userBu01Lead.id, teamId: "bu01" },
     { userId: userBu01Lead.id, teamId: "sales-marketing" },
 
     { userId: userFinanceLead.id, teamId: "finance" },
     { userId: userFinanceLead.id, teamId: "hr-admin" },
 
-    // 1 team
     { userId: userBu02Lead.id, teamId: "bu02" },
     { userId: userBu03Lead.id, teamId: "bu03" },
     { userId: userBu04Lead.id, teamId: "bu04" },
@@ -198,14 +162,7 @@ export async function seedDatabase() {
   for (const m of membershipData) {
     await prisma.membership.create({ data: m });
   }
-  // ADMIN and CEO bypass per-team Membership checks via canAccessTeam(),
-  // so userAdmin/userCeo don't strictly need rows for every team.
 
-  // 4. Standard Tasks - every team gets multiple tasks across all four
-  // categories (Finance, Customer, Process/Tech, People), plus one ad-hoc
-  // example per team. A handful of WEEKLY/MONTHLY/QUARTERLY tasks are
-  // flagged pastDeadline so at least a few completions demonstrably land
-  // after their Task.deadline, with an excuse comment attached.
   const tasksData = [
     // BU01 - North America Retail
     { teamId: "bu01", createdById: userAdmin.id, category: "FINANCE" as const, description: "Reconcile weekly cash position", kpiReference: "Ledger Accuracy %", frequency: "WEEKLY" as const, source: "STANDARD" as const },

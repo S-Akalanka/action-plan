@@ -67,7 +67,6 @@ export function MyPlanTaskRow({
         </div>
         <div className="flex items-center gap-2">
           <input
-            autoFocus
             value={excuseDraft}
             onChange={(e) => setExcuseDraft(e.target.value)}
             onKeyDown={(e) => {

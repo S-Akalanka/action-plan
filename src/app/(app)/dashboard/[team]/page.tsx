@@ -51,7 +51,9 @@ export default function TeamDrilldownPage({
   }
 
   const teamName: string = data.teamName;
-  const completed = data.tasks.filter((t: any) => t.status === "COMPLETE").length;
+  const completed = data.tasks.filter(
+    (t: any) => t.status === "COMPLETE",
+  ).length;
   const incomplete = data.tasks.length - completed;
 
   const stats: TeamDrilldownStats = {
@@ -81,13 +83,15 @@ export default function TeamDrilldownPage({
         kpi: t.kpiReference ?? "—",
         active: t.isActivated ?? false,
         completed: t.status === "COMPLETE",
+        comment: t.comment ?? "-",
       };
     }),
   };
 
-  const activePct = stats.totalTasks > 0
-    ? Math.round((stats.currentlyActive / stats.totalTasks) * 100)
-    : 0;
+  const activePct =
+    stats.totalTasks > 0
+      ? Math.round((stats.currentlyActive / stats.totalTasks) * 100)
+      : 0;
 
   return (
     <main className="flex-1 px-8 py-8">
@@ -120,22 +124,38 @@ export default function TeamDrilldownPage({
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-lg border border-[#E5E9F0] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">Total Tasks</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
+                Total Tasks
+              </p>
               <p className="mt-2 text-2xl font-bold">{stats.totalTasks}</p>
               <p className="mt-1 text-xs text-[#9AA3B2]">Across all owners</p>
             </div>
             <div className="rounded-lg border border-[#E5E9F0] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">Complete</p>
-              <p className="mt-2 text-2xl font-bold text-[#16233F]">{stats.completed}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
+                Complete
+              </p>
+              <p className="mt-2 text-2xl font-bold text-[#16233F]">
+                {stats.completed}
+              </p>
             </div>
             <div className="rounded-lg border border-[#E5E9F0] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">Incomplete</p>
-              <p className="mt-2 text-2xl font-bold text-[#5B6472]">{stats.incomplete}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
+                Incomplete
+              </p>
+              <p className="mt-2 text-2xl font-bold text-[#5B6472]">
+                {stats.incomplete}
+              </p>
             </div>
             <div className="rounded-lg border border-[#E5E9F0] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">Currently Active</p>
-              <p className="mt-2 text-2xl font-bold text-[#D97706]">{stats.currentlyActive}</p>
-              <p className="mt-1 text-xs text-[#9AA3B2]">{activePct}% of total</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
+                Currently Active
+              </p>
+              <p className="mt-2 text-2xl font-bold text-[#D97706]">
+                {stats.currentlyActive}
+              </p>
+              <p className="mt-1 text-xs text-[#9AA3B2]">
+                {activePct}% of total
+              </p>
             </div>
           </div>
         </div>
@@ -143,13 +163,20 @@ export default function TeamDrilldownPage({
         <div className="rounded-xl border border-[#E5E9F0] bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-base font-bold">Performance Index</h2>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold">{stats.performanceIndex}%</span>
+            <span className="text-4xl font-bold">
+              {stats.performanceIndex}%
+            </span>
           </div>
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#E5E9F0]">
-            <div className="h-full rounded-full bg-[#16233F]" style={{ width: `${stats.performanceIndex}%` }} />
+            <div
+              className="h-full rounded-full bg-[#16233F]"
+              style={{ width: `${stats.performanceIndex}%` }}
+            />
           </div>
           <div className="mt-4 rounded-lg border border-[#E5E9F0] p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">Tasks Done</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9AA3B2]">
+              Tasks Done
+            </p>
             <p className="mt-1 text-xl font-bold">{stats.completed}</p>
           </div>
         </div>
@@ -164,22 +191,25 @@ export default function TeamDrilldownPage({
           </span>
         </div>
 
-        <div className="hidden grid-cols-[1fr_160px_160px_160px_130px] gap-4 border-b border-[#E5E9F0] bg-[#F9FAFB] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#9AA3B2] md:grid">
+        <div className="hidden grid-cols-[1fr_100px_100px_130px_100px_200px] gap-4 border-b border-[#E5E9F0] bg-[#F9FAFB] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#9AA3B2] md:grid">
           <span>Initiative</span>
           <span>Owner</span>
           <span>Frequency</span>
           <span>KPI Reference</span>
-          <span className="text-right">Status</span>
+          <span>Status</span>
+          <span>Comments</span>
         </div>
 
         <div className="divide-y divide-[#E5E9F0]">
           {stats.initiatives.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[1fr_160px_160px_160px_130px] md:items-center md:gap-4"
+              className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[1fr_100px_100px_140px_100px_200px] md:items-center md:gap-4"
             >
               <div>
-                <p className="text-sm font-medium text-[#16233F]">{item.title}</p>
+                <p className="text-sm font-medium text-[#16233F]">
+                  {item.title}
+                </p>
                 <p className="text-xs text-[#9AA3B2]">{item.subtitle}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -190,7 +220,7 @@ export default function TeamDrilldownPage({
               </div>
               <span className="text-sm text-[#5B6472]">{item.frequency}</span>
               <span className="text-sm text-[#5B6472]">{item.kpi}</span>
-              <div className="md:text-right">
+              <div className="">
                 {item.completed ? (
                   <span className="inline-block rounded-md bg-[#DCFCE7] px-2 py-1 text-xs font-semibold text-[#16A34A]">
                     Complete
@@ -205,6 +235,7 @@ export default function TeamDrilldownPage({
                   </span>
                 )}
               </div>
+              <span className="text-xs text-[#5B6472] ">{item.comment}</span>
             </div>
           ))}
         </div>

@@ -29,7 +29,6 @@ export const authOptions: NextAuthOptions = {
           where: { microsoftId: username },
         });
 
-        // Auto-create user if they don't exist
         if (!user) {
           user = await prisma.user.create({
             data: {

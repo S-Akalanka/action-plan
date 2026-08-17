@@ -21,14 +21,12 @@ const FREQUENCY_TO_ENUM: Record<string, PrismaFrequency> = {
   Quarterly: "QUARTERLY",
 };
 
-// GET /api/admin/teams/[teamId]/tasks — Retrieve standard recurring tasks (admin only)
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   const { teamId } = await params;
 
-  // Fetch STANDARD source tasks for the team (or all teams if teamId="all")
   const tasks = await prisma.task.findMany({
     where: teamId === "all" ? { source: "STANDARD" } : { teamId, source: "STANDARD" },
     orderBy: { createdAt: "desc" },
@@ -44,26 +42,22 @@ export async function GET(
   return NextResponse.json(withTeamName);
 }
 
-// POST /api/admin/teams/[teamId]/tasks — Create a standard recurring task (admin only)
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   const { teamId } = await params;
 
-  // Verify user authentication
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  // Verify admin or CEO role
   const isAdminOrCeo = await requireAdminOrCeo(session.user.id);
   if (!isAdminOrCeo) {
     return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
   }
 
-  // Validate request body against schema
   const rawBody = await req.json();
   const result = standardTaskFormSchema.safeParse(rawBody);
   if (!result.success) {
@@ -72,7 +66,6 @@ export async function POST(
 
   const { category, description, kpi, frequency, deadline } = result.data;
 
-  // Create task with enumerated category and frequency
   const task = await prisma.task.create({
     data: {
       teamId,

@@ -1,5 +1,3 @@
-// GET /api/teams/[teamId]
-
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";

@@ -4,7 +4,6 @@ export async function canAccessTeam(userId: string, teamId: string): Promise<boo
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return false;
 
-  // ADMIN/CEO bypass
   if (user.role === "ADMIN" || user.role === "CEO") return true;
 
   const membership = await prisma.membership.findUnique({

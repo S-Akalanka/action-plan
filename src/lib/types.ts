@@ -1,9 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Dashboard
-// ---------------------------------------------------------------------------
-
 export type TrendDirection = "up" | "down" | "neutral";
 
 export interface SummaryCardData {
@@ -38,10 +34,6 @@ export interface TopTeam {
   name: string;
   percent: number;
 }
-
-// ---------------------------------------------------------------------------
-// Tasks — canonical shape (single source of truth for mock/API data)
-// ---------------------------------------------------------------------------
 
 export type CategoryKey = "Finance" | "Customer" | "Process/Tech" | "People";
 export type TaskFrequency = "Weekly" | "Bi-weekly" | "Monthly" | "Quarterly" | "Ad-hoc";
@@ -154,10 +146,6 @@ export function toDrillDownInitiative(task: ActionTask): DrillDownInitiative {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Action Plans
-// ---------------------------------------------------------------------------
-
 export interface Task {
   id: string;
   title: string;
@@ -174,10 +162,6 @@ export interface CategoryMeta {
   percent: number;
 }
 
-// ---------------------------------------------------------------------------
-// Task Ledger
-// ---------------------------------------------------------------------------
-
 export interface LedgerTask {
   id: string;
   title: string;
@@ -192,10 +176,6 @@ export interface LedgerTask {
   ownerColor?: string;
   priority?: "High";
 }
-
-// ---------------------------------------------------------------------------
-// My Action Plan (personal weekly view)
-// ---------------------------------------------------------------------------
 
 export interface Team {
   id: string;
@@ -217,10 +197,6 @@ export interface MyPlanTask {
   /** Timestamp shown once a task is marked done, e.g. "Mon 09:14" */
   completedAt?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Executive Summary (CEO read-only view)
-// ---------------------------------------------------------------------------
 
 export type TeamStatus = "On Track" | "Needs Attention" | "Pending";
 
@@ -249,6 +225,7 @@ export interface DrillDownInitiative {
   kpi: string;
   active: boolean;
   completed: boolean;
+  comment?: string;
 }
 
 export interface TeamDrilldownStats {

@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeekStart, isTaskDueForWeek } from "@/lib/week";
 
-// GET /api/dashboard — Retrieve aggregated dashboard metrics across all teams for a week
 export async function GET(req: Request) {
   try {
-    // Parse week parameter or use current week
     const { searchParams } = new URL(req.url);
     const weekParam = searchParams.get("week");
     const weekStart = weekParam ? new Date(weekParam) : getCurrentWeekStart();
 
-    // Fetch all teams
+
     const teams = await prisma.team.findMany();
     if (!teams || teams.length === 0) {
       return NextResponse.json({ aggregates: {}, teams: [] });
@@ -28,7 +26,6 @@ export async function GET(req: Request) {
     }
 
     if (tasksNeedingInstances.length > 0) {
-      // Batch-create missing instances for the week (skipDuplicates handles already-existing)
       await prisma.taskInstance.createMany({
         data: tasksNeedingInstances.map((taskId) => ({
           taskId,
@@ -39,7 +36,6 @@ export async function GET(req: Request) {
       });
     }
 
-    // Fetch all instances for the week (including freshly created ones)
     const allInstances = await prisma.taskInstance.findMany({
       where: { weekStartDate: weekStart },
       include: { task: true },

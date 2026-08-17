@@ -32,7 +32,6 @@ export default function LandingPage() {
       <LandingHeader />
 
       <main className="flex-1">
-        {/* Hero */}
         <section className="relative flex min-h-screen items-center overflow-hidden bg-[#0B1424] px-6 py-32">
           <div
             className="absolute inset-0 bg-cover bg-center"
@@ -69,7 +68,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Feature grid */}
         <section className="bg-[#F7F8FA] px-6 py-20 sm:py-24">
           <div className="mx-auto max-w-[1200px]">
             <div className="max-w-[560px]">
@@ -103,7 +101,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CTA */}
         <section className="border-t border-[#E5E9F0] bg-white px-6 py-20 sm:py-24">
           <div className="mx-auto flex max-w-[720px] flex-col items-center text-center">
             <h2 className="text-2xl font-bold tracking-tight text-[#16233F] sm:text-3xl">

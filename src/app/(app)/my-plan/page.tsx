@@ -31,22 +31,14 @@ const FREQUENCY_TO_ENUM: Record<string, string> = {
 };
 
 function getMonday(d: Date) {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  date.setDate(diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay();
+  const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff));
 }
 
 function toDateParam(d: Date) {
-  // Build from local Y/M/D components — toISOString() converts to UTC,
-  // which rolls local midnight back to the previous calendar day in any
-  // positive-UTC-offset timezone.
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return d.toISOString().slice(0, 10);
 }
 
 async function parseOrThrow(res: Response) {
@@ -57,11 +49,11 @@ async function parseOrThrow(res: Response) {
   return data;
 }
 
-// UPDATED: instancesData may now contain TWO items for the same taskId —
-// the fresh current-week instance (isOverdue: false) and an unresolved
-// previous-week instance (isOverdue: true) needing a comment. Both become
-// separate rows, using instance.id as the row key (not task.id), since
-// task.id is no longer unique across the merged list.
+// instancesData may contain TWO items for the same taskId — the fresh
+// current-week instance (isOverdue: false) and an unresolved previous-week
+// instance (isOverdue: true) needing a comment. Both become separate rows,
+// using instance.id as the row key (not task.id), since task.id is no
+// longer unique across the merged list.
 const mapMerged = (tasksData: any[], instancesData: any[]) => {
   const rows: any[] = [];
 
@@ -137,7 +129,16 @@ export default function MyPlanPage() {
   });
 
   const invalidatePlan = () => {
-    queryClient.invalidateQueries({ queryKey: ["my-plan"] });
+    queryClient.invalidateQueries({ queryKey: ["my-plan"], refetchType: "all" });
+  };
+
+  // Hard refetch, bypassing staleness/active checks entirely — used after
+  // the comment mutation specifically, since that PATCH can create a new
+  // row server-side (see submitExcuseMutation) and we need the UI to
+  // reflect that immediately, not on whatever cache timing invalidateQueries
+  // would otherwise apply.
+  const forceRefetchPlan = () => {
+    return queryClient.refetchQueries({ queryKey: ["my-plan"], type: "all" });
   };
 
   const toggleMutation = useMutation({
@@ -166,6 +167,11 @@ export default function MyPlanPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update task progress"),
   });
 
+  // Commenting on an overdue instance resolves it AND causes the backend to
+  // spawn a fresh current-week instance for the same task (it still wasn't
+  // done). invalidatePlan() refetches instances for the currently selected
+  // week, so if the user is looking at the current week that new row shows
+  // up automatically — this just adds a toast so it isn't a silent change.
   const submitExcuseMutation = useMutation({
     mutationFn: async ({ instanceId, comment }: { instanceId: string; comment: string }) => {
       const res = await fetch(`/api/instances/${instanceId}`, {
@@ -175,7 +181,14 @@ export default function MyPlanPage() {
       });
       return parseOrThrow(res);
     },
-    onSuccess: invalidatePlan,
+    onSuccess: async (_data, variables) => {
+      const task = tasks.find((t) => (t as any).instanceId === variables.instanceId);
+      const wasOverdue = (task as any)?.isOverdue;
+      await forceRefetchPlan();
+      if (wasOverdue) {
+        toast.success("Noted — this task has been added back to the current week.");
+      }
+    },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to submit excuse"),
   });
 
