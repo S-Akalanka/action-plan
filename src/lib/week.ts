@@ -16,15 +16,6 @@ function mondayOf(date: Date): Date {
   return d;
 }
 
-// Now requires deadline — every Task has one (required field). A task is
-// never due for a week that starts after its deadline has passed,
-// regardless of frequency. This applies to ONCE tasks too: if the
-// deadline has already passed and no instance was ever completed, no
-// new instance gets created — it's simply overdue, not regenerated forever.
-//
-// createdAt anchors BI_WEEKLY's every-other-week cadence to the week the
-// task was created — without an anchor there's no way to tell an "on"
-// week from an "off" one.
 export function isTaskDueForWeek(
   frequency: string,
   weekStart: Date,

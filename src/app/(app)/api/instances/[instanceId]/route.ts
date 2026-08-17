@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
 import { canAccessTeam } from "@/lib/auth";
 import { getCurrentWeekStart } from "@/lib/week";
 import { patchInstanceSchema } from "@/lib/schemas";
+
+function toUtcDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
 export async function PATCH(
   req: Request,
@@ -38,7 +43,8 @@ export async function PATCH(
 
   const body = parseResult.data;
   const currentWeekStart = getCurrentWeekStart();
-  const isCurrentWeek = instance.weekStartDate.getTime() === currentWeekStart.getTime();
+  const isCurrentWeek =
+    toUtcDateKey(instance.weekStartDate) === toUtcDateKey(currentWeekStart);
 
   if ((body.status !== undefined || body.isActivated !== undefined) && !isCurrentWeek) {
     return NextResponse.json(
@@ -47,7 +53,7 @@ export async function PATCH(
     );
   }
 
-  const updateData: any = {};
+  const updateData: Prisma.TaskInstanceUpdateInput = {};
 
   if (body.status !== undefined) {
     updateData.status = body.status;
