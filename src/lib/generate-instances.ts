@@ -1,17 +1,19 @@
-// Single source of truth for creating missing TaskInstance rows for a given week.
-// Called by the scheduled cron route and as a self-healing fallback by routes
-// that read instances — prevents silent data gaps if the cron job misses a run.
+// Creates missing instances for due standard tasks. Safe for scheduled and
+// on-demand use.
 
 import { prisma } from "./prisma";
-import { isTaskDueForWeek } from "./week";
+import { isTaskDueForWeek, normalizeToMonday } from "./week";
 
 export async function generateInstancesForWeek(weekStart: Date): Promise<number> {
+  // Store week start dates consistently as Mondays.
+  const normalizedWeekStart = normalizeToMonday(weekStart);
+
   const activeTasks = await prisma.task.findMany({
     where: { isActive: true, source: "STANDARD" },
   });
 
   const tasksNeedingInstances = activeTasks.filter((task) =>
-    isTaskDueForWeek(task.frequency, weekStart, task.deadline, task.createdAt)
+    isTaskDueForWeek(task.frequency, normalizedWeekStart, task.deadline, task.createdAt)
   );
 
   if (tasksNeedingInstances.length === 0) return 0;
@@ -19,10 +21,10 @@ export async function generateInstancesForWeek(weekStart: Date): Promise<number>
   const result = await prisma.taskInstance.createMany({
     data: tasksNeedingInstances.map((task) => ({
       taskId: task.id,
-      weekStartDate: weekStart,
+      weekStartDate: normalizedWeekStart,
       createdAt: new Date(),
     })),
-    skipDuplicates: true, // safe to call more than once for the same week
+    skipDuplicates: true,
   });
 
   return result.count;

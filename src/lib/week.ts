@@ -13,8 +13,8 @@ function toUtcMidnight(y: number, m: number, d: number): Date {
 export function getCurrentWeekStart(): Date {
   const now = new Date();
   const currentDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const day = currentDay.getUTCDay();
-  const diff = currentDay.getUTCDate() - day + (day === 0 ? -6 : 1);
+  const day = currentDay.getUTCDay(); // 0 = Sunday
+  const diff = currentDay.getUTCDate() - day + (day === 0 ? -6 : 1); // back to Monday
   return toUtcMidnight(currentDay.getUTCFullYear(), currentDay.getUTCMonth(), diff);
 }
 
@@ -23,6 +23,17 @@ function mondayOf(date: Date): Date {
   const day = currentDay.getUTCDay();
   const diff = currentDay.getUTCDate() - day + (day === 0 ? -6 : 1);
   return toUtcMidnight(currentDay.getUTCFullYear(), currentDay.getUTCMonth(), diff);
+}
+
+// Snaps any Date to the Monday of its week. Every route that resolves a
+// weekStart — from a query param, from getCurrentWeekStart(), from
+// anywhere — should pass it through this before using it in any query or
+// write. This is the one choke point that makes a non-Monday
+// weekStartDate impossible to write, regardless of whether some future
+// page's own date math is wrong. Used in generate-instances.ts and every
+// instances-serving route.
+export function normalizeToMonday(date: Date): Date {
+  return mondayOf(date);
 }
 
 export function isTaskDueForWeek(

@@ -1,39 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentWeekStart, isTaskDueForWeek } from "@/lib/week";
+import { getCurrentWeekStart, normalizeToMonday } from "@/lib/week";
+import { generateInstancesForWeek } from "@/lib/generate-instances";
+
+// Parse calendar dates as UTC to match the database date representation.
+function parseWeekParam(week: string): Date {
+  const [year, month, day] = week.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const weekParam = searchParams.get("week");
-    const weekStart = weekParam ? new Date(weekParam) : getCurrentWeekStart();
 
+    const weekStart = normalizeToMonday(
+      weekParam ? parseWeekParam(weekParam) : getCurrentWeekStart()
+    );
 
     const teams = await prisma.team.findMany();
     if (!teams || teams.length === 0) {
       return NextResponse.json({ aggregates: {}, teams: [] });
     }
 
-    const activeTasks = await prisma.task.findMany({
-      where: { isActive: true },
-    });
+    // Generate missing instances only for the current week; historical weeks
+    // are immutable.
+    const currentWeekStart = getCurrentWeekStart();
+    const isViewingCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
-    const tasksNeedingInstances: string[] = [];
-    for (const task of activeTasks) {
-      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline, task.createdAt)) {
-        tasksNeedingInstances.push(task.id);
-      }
-    }
-
-    if (tasksNeedingInstances.length > 0) {
-      await prisma.taskInstance.createMany({
-        data: tasksNeedingInstances.map((taskId) => ({
-          taskId,
-          weekStartDate: weekStart,
-          createdAt: new Date(),
-        })),
-        skipDuplicates: true,
-      });
+    if (isViewingCurrentWeek) {
+      await generateInstancesForWeek(weekStart);
     }
 
     const allInstances = await prisma.taskInstance.findMany({
@@ -51,21 +47,21 @@ export async function GET(req: Request) {
 
     const teamResults = teams.map((team) => {
       const instances = allInstances.filter((i) => i.task.teamId === team.id);
-      
+
       const categoryPct: Record<string, number> = {};
       for (const cat of categories) {
         const inCategory = instances.filter((i) => i.task.category === cat);
         const completed = inCategory.filter((i) => i.status === "COMPLETE").length;
         categoryPct[cat] = inCategory.length > 0 ? Math.round((completed / inCategory.length) * 100) : 0;
       }
-      
+
       const totalCompleted = instances.filter((i) => i.status === "COMPLETE").length;
       const overall = instances.length > 0 ? Math.round((totalCompleted / instances.length) * 100) : 0;
-      
-      return { 
-        teamId: team.id, 
-        teamName: team.teamName, 
-        categories: categoryPct, 
+
+      return {
+        teamId: team.id,
+        teamName: team.teamName,
+        categories: categoryPct,
         overall,
         taskCount: instances.length,
       };

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
 import { canAccessTeam } from "@/lib/auth";
-import { getCurrentWeekStart } from "@/lib/week";
+import { getCurrentWeekStart, normalizeToMonday } from "@/lib/week";
 import { patchInstanceSchema } from "@/lib/schemas";
 
 function toUtcDateKey(date: Date): string {
@@ -42,7 +42,7 @@ export async function PATCH(
   }
 
   const body = parseResult.data;
-  const currentWeekStart = getCurrentWeekStart();
+  const currentWeekStart = normalizeToMonday(getCurrentWeekStart());
   const isCurrentWeek =
     toUtcDateKey(instance.weekStartDate) === toUtcDateKey(currentWeekStart);
 
@@ -58,36 +58,27 @@ export async function PATCH(
   if (body.status !== undefined) {
     updateData.status = body.status;
     updateData.completedAt = body.status === "COMPLETE" ? new Date() : null;
-    updateData.completedBy =
-      body.status === "COMPLETE"
-        ? { connect: { id: session.user.id } }
-        : { disconnect: true };
+    updateData.completedById = body.status === "COMPLETE" ? session.user.id : null;
   }
 
   if (body.isActivated !== undefined) {
     updateData.isActivated = body.isActivated;
   }
 
-  // `comment` is a scalar column on TaskInstance (single comment per
-  // instance), not a separate Comment model — update in place instead of
-  // creating a Comment row.
+  // Comments are stored directly on the instance.
   const isCommenting = body.comment !== undefined && body.comment.trim().length > 0;
   if (isCommenting) {
     updateData.comment = body.comment!.trim();
     updateData.commentedAt = new Date();
-    updateData.commentedBy = { connect: { id: session.user.id } };
+    updateData.commentedById = session.user.id;
   }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(instance);
   }
 
-  // Commenting on a PAST-week instance resolves it (comment !== null drops
-  // it out of the overdue query) but the task still wasn't done, so spawn a
-  // fresh INCOMPLETE instance for the current week in the same transaction.
-  // Upsert on the (taskId, weekStartDate) unique constraint guards against
-  // duplicates if one was already generated separately (e.g. by the cron /
-  // self-healing fetch).
+  // Excusing a past instance removes it from overdue results and creates the
+  // current week's incomplete instance atomically.
   if (isCommenting && !isCurrentWeek) {
     const [updated] = await prisma.$transaction([
       prisma.taskInstance.update({ where: { id: instanceId }, data: updateData }),
@@ -102,7 +93,6 @@ export async function PATCH(
           taskId: instance.taskId,
           weekStartDate: currentWeekStart,
           status: "INCOMPLETE",
-          createdAt: new Date(),
         },
         update: {},
       }),

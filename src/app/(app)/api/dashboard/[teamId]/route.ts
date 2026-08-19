@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentWeekStart, isTaskDueForWeek } from "@/lib/week";
+import { getCurrentWeekStart, normalizeToMonday } from "@/lib/week";
+import { generateInstancesForWeek } from "@/lib/generate-instances";
+
+// Parse calendar dates as UTC to match the database date representation.
+function parseWeekParam(week: string): Date {
+  const [year, month, day] = week.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
 
 export async function GET(
   req: Request,
@@ -11,33 +18,22 @@ export async function GET(
   try {
     const { searchParams } = new URL(req.url);
     const weekParam = searchParams.get("week");
-    const weekStart = weekParam ? new Date(weekParam) : getCurrentWeekStart();
+    const weekStart = normalizeToMonday(
+      weekParam ? parseWeekParam(weekParam) : getCurrentWeekStart()
+    );
 
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) {
       return NextResponse.json({ teamId, teamName: teamId, overall: 0, tasks: [] });
     }
 
-    const activeTasks = await prisma.task.findMany({
-      where: { teamId, isActive: true },
-    });
+    // Generate missing instances only for the current week; historical weeks
+    // are immutable.
+    const currentWeekStart = getCurrentWeekStart();
+    const isViewingCurrentWeek = weekStart.getTime() === currentWeekStart.getTime();
 
-    const tasksNeedingInstances: string[] = [];
-    for (const task of activeTasks) {
-      if (isTaskDueForWeek(task.frequency, weekStart, task.deadline, task.createdAt)) {
-        tasksNeedingInstances.push(task.id);
-      }
-    }
-
-    if (tasksNeedingInstances.length > 0) {
-      await prisma.taskInstance.createMany({
-        data: tasksNeedingInstances.map((tId) => ({
-          taskId: tId,
-          weekStartDate: weekStart,
-          createdAt: new Date(),
-        })),
-        skipDuplicates: true,
-      });
+    if (isViewingCurrentWeek) {
+      await generateInstancesForWeek(weekStart);
     }
 
     const instances = await prisma.taskInstance.findMany({
