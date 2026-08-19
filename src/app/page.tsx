@@ -10,19 +10,19 @@ const FEATURES = [
     icon: BarChart3,
     title: "Executive Rollup",
     description:
-      "Aggregate cross-departmental progress into a single, high-fidelity strategic canvas. Monitor organizational health at a glance.",
+      "See completion across every business unit - Finance, Customer, Process/Tech, and People - the moment a team updates their status. No manual refresh, no exports.",
   },
   {
     icon: ListChecks,
     title: "Team Action Plans",
     description:
-      "Translate high-level strategy into structured weekly action plans. Maintain clear alignment from the C-suite to the frontline.",
+      "Each team logs into its own action plan, ticks off this week's tasks in a single click, and adds ad-hoc work the moment it comes up. Under two minutes per visit, on any device.",
   },
   {
     icon: ShieldCheck,
     title: "Standard Task Management",
     description:
-      "Reliable, precise task tracking without the clutter. Ensure accountability and execution velocity with minimal overhead.",
+      "HR and leadership keep every team's recurring task library current - add, edit, or retire a task without waiting on a developer.",
   },
 ];
 
@@ -52,9 +52,10 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-6 max-w-[560px] text-base leading-relaxed text-white/70 sm:text-lg">
-              The lightweight platform for high-performance teams to track
-              weekly action plans and executive results. Clarity, authority, and
-              precision in every initiative.
+              Built for Acentura's business units - from BU01 Retail to
+              Engineering, HR, and Finance to turn weekly KPI actions into
+              a habit, and give leadership a live read on what's actually
+              getting done.
             </p>
 
             <Link
@@ -75,8 +76,9 @@ export default function LandingPage() {
                 Strategic Execution Arsenal
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-[#5B6472] sm:text-base">
-                High-density information presented with low-cognitive friction.
-                Built for C-suite alignment and team accountability.
+                One shared login per team, four KPI categories and a
+                dashboard that updates the instant a task is marked done 
+                built for C-suite visibility and team-level accountability.
               </p>
             </div>
 
@@ -107,8 +109,8 @@ export default function LandingPage() {
               Ready to align your organization?
             </h2>
             <p className="mt-3 text-sm text-[#5B6472] sm:text-base">
-              Deploy Acentura today and transform strategic intent into measured
-              execution.
+              Give every business unit and the CEO a live view of this
+              week's action plan, without a single spreadsheet.
             </p>
             <Link
               href="/login"
