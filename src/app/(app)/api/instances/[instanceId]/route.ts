@@ -58,7 +58,10 @@ export async function PATCH(
   if (body.status !== undefined) {
     updateData.status = body.status;
     updateData.completedAt = body.status === "COMPLETE" ? new Date() : null;
-    updateData.completedById = body.status === "COMPLETE" ? session.user.id : null;
+    updateData.completedBy =
+      body.status === "COMPLETE"
+        ? { connect: { id: session.user.id } }
+        : { disconnect: true };
   }
 
   if (body.isActivated !== undefined) {
@@ -70,7 +73,7 @@ export async function PATCH(
   if (isCommenting) {
     updateData.comment = body.comment!.trim();
     updateData.commentedAt = new Date();
-    updateData.commentedById = session.user.id;
+    updateData.commentedBy = { connect: { id: session.user.id } };
   }
 
   if (Object.keys(updateData).length === 0) {
